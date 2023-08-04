@@ -1,0 +1,17 @@
+name: tf-cuda
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - alive-progress
+  - h5py
+  - pandas
+  - pyarrow
+  - matplotlib
+  - cudatoolkit=11.8.0
+  - pip
+  - pip:
+      - nvidia-cudnn-cu11==8.6.0.163
+      - tensorflow==2.12.*
+      - scalib
