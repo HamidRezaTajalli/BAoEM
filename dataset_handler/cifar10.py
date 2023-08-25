@@ -7,26 +7,22 @@ import numpy as np
 
 np.random.seed(53)
 
-def get_datasets_simple(root_path='./data/MNIST/'):
-    classes_names = ('Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine')
+def get_datasets_simple(root_path='./data/CIFAR10/'):
+    classes_names = ('Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck')
     transforms_dict = {
-        'train': transforms.Compose([transforms.ToTensor(),
-                                     # transforms.Normalize((0.1307,), (0.3081,))
-                                     ]),
-        'test': transforms.Compose([transforms.ToTensor(),
-                                    # transforms.Normalize((0.1307,), (0.3081,))
-                                    ])
+        'train': transforms.Compose([transforms.ToTensor()]),
+        'test': transforms.Compose([transforms.ToTensor()])
     }
 
-    train_dataset = datasets.MNIST(root=root_path, train=True, transform=transforms_dict['train'], download=True)
-    test_dataset = datasets.MNIST(root=root_path, train=False, transform=transforms_dict['test'], download=True)
+    train_dataset = datasets.CIFAR10(root=root_path, train=True, transform=transforms_dict['train'], download=True)
+    test_dataset = datasets.CIFAR10(root=root_path, train=False, transform=transforms_dict['test'], download=True)
 
     train_dataset, validation_dataset = torch.utils.data.random_split(train_dataset,
                                                                       [int(len(train_dataset) / (12 / 11)),
                                                                        int(len(train_dataset) / 12)])
     return train_dataset, validation_dataset, test_dataset, classes_names
 
-def get_dataloaders_simple(batch_size=128, drop_last=False, is_shuffle=True, root_path='./data/MNIST/'):
+def get_dataloaders_simple(batch_size=64, drop_last=False, is_shuffle=True, root_path='./data/CIFAR10/'):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     num_workers = 2 if device.type == 'cuda' else 0
 

@@ -1,12 +1,5 @@
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
-from sklearn.utils import resample
 from tqdm import tqdm
-
-
 
 
 def train(model, device, train_loader, optimizer, criterion):
@@ -50,6 +43,7 @@ def test(model, device, test_loader, criterion):
     accuracy = total_corrects / len(test_loader.dataset)
     return avg_loss, accuracy
 
+
 def test_ensemble_bagging(models_list, device, test_loader, criterion):
     for model in models_list:
         model.eval()
@@ -58,20 +52,14 @@ def test_ensemble_bagging(models_list, device, test_loader, criterion):
     with torch.no_grad():
         for batch_idx, (data, target) in enumerate(tqdm(test_loader, desc="Testing")):
             data, target = data.to(device), target.to(device)
-            outputs = torch.zeros(len(target), len(models_list))  # A matrix to store each model's prediction for each input
-            #print output matrix shape
-            print(outputs.shape)
-
+            outputs = torch.zeros(len(target),
+                                  len(models_list))  # A matrix to store each model's prediction for each input
 
             # Get each model's prediction for each input batch
             for model_idx, model in enumerate(models_list):
                 output = model(data)
-                print(output.shape)
                 outputs[:, model_idx] = torch.max(output, dim=1)[1]
-                print(torch.max(output, dim=1).shape)
-                print(torch.max(output, dim=1)[1].shape)
 
-## TODO: Ta inja ro print kon, ke output ro print koni, bebin che shape i dare. commit kon! va ejra tu cluster.
             # Use a majority vote system to get final predictions
             final_predictions, _ = torch.mode(outputs, dim=1)
             final_predictions = final_predictions.to(device)
@@ -80,3 +68,4 @@ def test_ensemble_bagging(models_list, device, test_loader, criterion):
 
     accuracy = total_corrects / len(test_loader.dataset)
     return accuracy
+
