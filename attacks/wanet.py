@@ -66,9 +66,10 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
     grid_temps = torch.clamp(grid_temps, -1, 1)
 
     #printing for test:
-    print(grid_temps.shape)
-    print(noise_grid.shape)
-    print(identity_grid.shape)
+    print("Shape of grid_temps after clamping:", grid_temps.shape)
+    print("Shape of noise_grid:", noise_grid.shape)
+    print("Shape of identity_grid:", identity_grid.shape)
+
 
     # if preparing trainset:
     if is_train:
@@ -88,16 +89,24 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
         grid_temps2 = torch.clamp(grid_temps2, -1, 1)
 
         #printing for test:
-        print(grid_temps2.shape)
+        print("Shape of grid_temps2 after clamping:", grid_temps2.shape)
 
         for i in range(ds_length):
             img, gt = dataset[i]
 
             # printing for testing:
-            print(type(img))
-            print(img.shape)
-            print(type(dataset.data[i]))
-            print(dataset.data[i].shape)
+            print("Type of img:", type(img))
+            print("Shape of img:", img.shape)
+            if isinstance(dataset, torch.utils.data.Subset):
+                print("Type of dataset.dataset.data[dataset.indices[i]]:", type(dataset.dataset.data[dataset.indices[i]]))
+                print("Shape of dataset.dataset.data[dataset.indices[i]]:", dataset.dataset.data[dataset.indices[i]].shape)
+            elif isinstance(dataset, torch.utils.data.Dataset):
+                print("Type of dataset.data[i]:", type(dataset.data[i]))
+                print("Shape of dataset.data[i]:", dataset.data[i].shape)
+            else:
+                print("Dataset is neither a torch.utils.data.Dataset nor a torch.utils.data.Subset")
+            
+
 
 
             # noise image
@@ -107,7 +116,7 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
                 ## TODO: check how this is applied on 1 channel datasets like mnist. check Jing code!
                 ct += 1
 
-                print(img.shape)
+                print("Shape of img after grid_sample (noise image):", img.shape)
 
             # poisoned image
             if pt < num_poison and poison_indices[pt] == i:
@@ -122,7 +131,7 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
                 img = F.grid_sample(img.unsqueeze(0), grid_temps, align_corners=True)[0]
                 pt += 1
 
-                print(img.shape)
+                print("Shape of img after grid_sample (poisoned image):", img.shape)
 
             # img_file_name = '%d.png' % cnt
             # img_file_path = os.path.join(self.path, img_file_name)
@@ -137,8 +146,9 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
         label_set = torch.LongTensor(label_set)
         poison_indices = poison_id
         cover_indices = cross_id
-        print("Poison indices:", poison_indices)
-        print("Cover indices:", cover_indices)
+        print("Poison indices after processing:", poison_indices)
+        print("Cover indices after processing:", cover_indices)
+
         # TODO kollan type va shape dataset va har input ro ghabl va baad print begir bebin dare chi kar mikoneh. khosusan 4 khate bala.
 
     # if preparing testset:

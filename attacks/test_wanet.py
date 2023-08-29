@@ -1,21 +1,25 @@
+import sys
+from pathlib import Path
+print(Path.cwd())
+sys.path.append(str(Path.cwd()))
 
 import torch
-from attacks.wanet import get_grids, get_poisoned_dataset
-from dataset_handler.cifar10 import get_dataloaders_simple
+from wanet import get_grids, get_poisoned_dataset
+from dataset_handler.cifar10 import get_datasets_simple
 
 
 def test_get_poisoned_dataset():
-    train_dataloader, validation_dataloader, test_dataloader = get_dataloaders_simple()
+    train_dataset, validation_dataset, test_dataset, classes_names = get_datasets_simple()
 
     # Define the parameters for get_poisoned_dataset
     is_train = True
-    dataset = train_dataloader.dataset
+    dataset = train_dataset
     sample_dimension = (3, 32, 32)  # For CIFAR10
-    s = 0.1
-    k = 10
+    s = 0.5
+    k = 4
     grid_rescale = 1
     poison_rate = 0.1
-    cross_ratio = 0.1
+    cross_ratio = 0.2
     noise_grid, identity_grid = get_grids(k, sample_dimension[1])
     target_class = 0
     num_classes = 10
@@ -46,3 +50,9 @@ def test_get_poisoned_dataset():
     assert len(poisoned_labels) == len(dataset), "The labels of the poisoned dataset should have the same length as the original dataset"
     assert len(poisoned_indices) == len(poisoned_dataset), "The poisoned dataset should have the same length as the original dataset"
     assert len(poisoned_labels) == len(dataset), "The labels of the poisoned dataset should have the same length as the original dataset"
+    
+
+
+
+if __name__ == "__main__":
+    test_get_poisoned_dataset()

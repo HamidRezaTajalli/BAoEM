@@ -7,6 +7,8 @@
 /dataSources/
 /dataSources.local.xml
 
+.vscode/*
+
 data/*
 __pycache__/*
 

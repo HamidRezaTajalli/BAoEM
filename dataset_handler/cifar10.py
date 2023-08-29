@@ -17,9 +17,9 @@ def get_datasets_simple(root_path='./data/CIFAR10/'):
     train_dataset = datasets.CIFAR10(root=root_path, train=True, transform=transforms_dict['train'], download=True)
     test_dataset = datasets.CIFAR10(root=root_path, train=False, transform=transforms_dict['test'], download=True)
 
-    train_dataset, validation_dataset = torch.utils.data.random_split(train_dataset,
-                                                                      [int(len(train_dataset) / (12 / 11)),
-                                                                       int(len(train_dataset) / 12)])
+    train_length = int(len(train_dataset) / (10 / 9))
+    validation_length = len(train_dataset) - train_length
+    train_dataset, validation_dataset = torch.utils.data.random_split(train_dataset, [train_length, validation_length])
     return train_dataset, validation_dataset, test_dataset, classes_names
 
 def get_dataloaders_simple(batch_size=64, drop_last=False, is_shuffle=True, root_path='./data/CIFAR10/'):
