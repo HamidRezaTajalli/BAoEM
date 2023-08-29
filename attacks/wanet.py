@@ -1,6 +1,8 @@
 import torch
 import random
 import torch.nn.functional as F
+from dataset_handler.cifar10 import get_dataloaders_simple
+
 
 
 # TODO 2 ta tabe pas minevisam: yeki collan train ya test set ro barmigardune (be nazaram as backdoor toolbox estefadeh kon! vali kode Xing ro ham farda check kon
@@ -24,10 +26,26 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
                          grid_rescale: int, poison_rate: float, cross_ratio: float, noise_grid, identity_grid,
                          target_class: int, num_classes, all_to_all: bool, source_label: int = None):
     """
-    :param is_train: if True, returns the train set, otherwise returns the test set
-    :param dataset: the dataset to be poisoned
-    :param sample_dimension: the dimension of the samples in the dataset
-    :return: the poisoned dataset
+    Generates a poisoned dataset based on the given parameters.
+
+    Args:
+        is_train (bool): If True, returns the poisoned train set, otherwise returns the poisoned test set.
+        dataset (torch.utils.data.Dataset): The original dataset to be poisoned.
+        sample_dimension (tuple): The dimension of the samples in the dataset.
+        s (float): The scale factor for the noise grid.
+        k (int): The size of the noise grid.
+        grid_rescale (int): The rescale factor for the grid.
+        poison_rate (float): The rate at which the dataset is poisoned.
+        cross_ratio (float): The ratio of cross noise images in the dataset.
+        noise_grid: The noise grid used for poisoning.
+        identity_grid: The identity grid used for poisoning.
+        target_class (int): The target class for the poisoned samples.
+        num_classes: The total number of classes in the dataset.
+        all_to_all (bool): If True, all classes are targeted, otherwise only the target class is targeted.
+        source_label (int, optional): The source label for the poisoned samples. If None, all labels are considered as source.
+
+    Returns:
+        tuple: The poisoned dataset, the labels of the poisoned dataset, the indices of the poisoned samples, and the indices of the cross noise samples.
     """
     n_channels = sample_dimension[0]
     input_width = sample_dimension[1]
@@ -142,6 +160,6 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
         label_set = torch.LongTensor(label_set)
 
     return img_set, label_set, poison_indices, cover_indices
-    # TODO: bayad in dataset haye return shode ro ye Dataset class dorost koni va be una tabdil koni ghable return.
+    # TODO bayad in dataset haye return shode ro ye Dataset class dorost koni va be una tabdil koni ghable return.
     #  hala soale asli ine ke: aya tuye Datasete jadid transformation mikhaim? Aya tuye dataset Avvaliey bayad
     #  transformation mizadim? Aya moghe transform kardane khode image bayad rushun taghiir bedim ya na?
