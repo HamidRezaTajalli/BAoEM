@@ -2,12 +2,7 @@ import torch
 import random
 import torch.nn.functional as F
 from dataset_handler.cifar10 import get_dataloaders_simple
-
-
-
-# TODO 2 ta tabe pas minevisam: yeki collan train ya test set ro barmigardune (be nazaram as backdoor toolbox estefadeh kon! vali kode Xing ro ham farda check kon
-# TODO yeki ham eine transform tu backdoor toolbox amal mikoneh! yani dune dune daade haro mogheh train ya test behesh midi transform mikone barmigardoone!
-
+import kornia.augmentation as A
 
 def get_grids(k, img_size):
     ins = torch.rand(1, 2, k, k) * 2 - 1
@@ -20,6 +15,27 @@ def get_grids(k, img_size):
     x, y = torch.meshgrid(array1d, array1d)
     identity_grid = torch.stack((y, x), 2)[None, ...]
     return noise_grid, identity_grid
+
+def poison_sample(sample, sample_dimension, identity_grid, noise_grid, s: float, grid_rescale: int):
+    """
+    Applies a transformation to a sample using a noise grid and an identity grid.
+
+    Args:
+        sample: The sample to be poisoned.
+        sample_dimension (tuple): The dimension of the sample.
+        identity_grid: The identity grid used for poisoning.
+        noise_grid: The noise grid used for poisoning.
+        s (float): The scale factor for the noise grid.
+        grid_rescale (int): The rescale factor for the grid.
+
+    Returns:
+        The poisoned sample.
+    """
+    
+    grid_temps = (identity_grid + s * noise_grid / sample_dimension[1]) * grid_rescale
+    grid_temps = torch.clamp(grid_temps, -1, 1)
+    return F.grid_sample(sample.unsqueeze(0), grid_temps, align_corners=True)[0]
+
 
 
 def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, sample_dimension: tuple, s: float, k: int,
@@ -60,15 +76,15 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
 
     poison_id = []
     cross_id = []
-    poison_indices, cover_indices = None, None
+    poison_indices, cross_indices = None, None
 
     grid_temps = (identity_grid + s * noise_grid / input_height) * grid_rescale
     grid_temps = torch.clamp(grid_temps, -1, 1)
 
-    #printing for test:
-    print("Shape of grid_temps after clamping:", grid_temps.shape)
-    print("Shape of noise_grid:", noise_grid.shape)
-    print("Shape of identity_grid:", identity_grid.shape)
+    # printing for test:
+    # print("Shape of grid_temps after clamping:", grid_temps.shape)
+    # print("Shape of noise_grid:", noise_grid.shape)
+    # print("Shape of identity_grid:", identity_grid.shape)
 
 
     # if preparing trainset:
@@ -89,35 +105,32 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
         grid_temps2 = torch.clamp(grid_temps2, -1, 1)
 
         #printing for test:
-        print("Shape of grid_temps2 after clamping:", grid_temps2.shape)
+        # print("Shape of grid_temps2 after clamping:", grid_temps2.shape)
 
         for i in range(ds_length):
             img, gt = dataset[i]
+            gt_type = type(gt)
 
-            # printing for testing:
-            print("Type of img:", type(img))
-            print("Shape of img:", img.shape)
-            if isinstance(dataset, torch.utils.data.Subset):
-                print("Type of dataset.dataset.data[dataset.indices[i]]:", type(dataset.dataset.data[dataset.indices[i]]))
-                print("Shape of dataset.dataset.data[dataset.indices[i]]:", dataset.dataset.data[dataset.indices[i]].shape)
-            elif isinstance(dataset, torch.utils.data.Dataset):
-                print("Type of dataset.data[i]:", type(dataset.data[i]))
-                print("Shape of dataset.data[i]:", dataset.data[i].shape)
-            else:
-                print("Dataset is neither a torch.utils.data.Dataset nor a torch.utils.data.Subset")
-            
-
-
+            # # printing for testing:
+            # print("Type of img:", type(img))
+            # print("Shape of img:", img.shape)
+            # if isinstance(dataset, torch.utils.data.Subset):
+            #     print("Type of dataset.dataset.data[dataset.indices[i]]:", type(dataset.dataset.data[dataset.indices[i]]))
+            #     print("Shape of dataset.dataset.data[dataset.indices[i]]:", dataset.dataset.data[dataset.indices[i]].shape)
+            # elif isinstance(dataset, torch.utils.data.Dataset):
+            #     print("Type of dataset.data[i]:", type(dataset.data[i]))
+            #     print("Shape of dataset.data[i]:", dataset.data[i].shape)
+            # else:
+            #     print("Dataset is neither a torch.utils.data.Dataset nor a torch.utils.data.Subset")
 
             # noise image
             if ct < num_cross and cross_indices[ct] == i:
                 cross_id.append(cnt)
                 img = F.grid_sample(img.unsqueeze(0), grid_temps2, align_corners=True)[0]
-                ## TODO: check how this is applied on 1 channel datasets like mnist. check Jing code!
                 ct += 1
 
-                print("Shape of img after grid_sample (noise image):", img.shape)
-
+                # print("Shape of img after grid_sample (noise image):", img.shape)
+                
             # poisoned image
             if pt < num_poison and poison_indices[pt] == i:
                 poison_id.append(cnt)
@@ -131,7 +144,7 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
                 img = F.grid_sample(img.unsqueeze(0), grid_temps, align_corners=True)[0]
                 pt += 1
 
-                print("Shape of img after grid_sample (poisoned image):", img.shape)
+                # print("Shape of img after grid_sample (poisoned image):", img.shape)
 
             # img_file_name = '%d.png' % cnt
             # img_file_path = os.path.join(self.path, img_file_name)
@@ -139,22 +152,19 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
             # print('[Generate Poisoned Set] Save %s' % img_file_path)
 
             img_set.append(img.unsqueeze(0))
-            label_set.append(gt)
+            label_set.append(gt_type(gt))
             cnt += 1
 
         img_set = torch.cat(img_set, dim=0)
-        label_set = torch.LongTensor(label_set)
+        
         poison_indices = poison_id
-        cover_indices = cross_id
-        print("Poison indices after processing:", poison_indices)
-        print("Cover indices after processing:", cover_indices)
-
-        # TODO kollan type va shape dataset va har input ro ghabl va baad print begir bebin dare chi kar mikoneh. khosusan 4 khate bala.
+        cross_indices = cross_id
 
     # if preparing testset:
     else:
         for i in range(ds_length):
             img, gt = dataset[i]
+            gt_type = type(gt)
             # change the label to the target class
             tc = target_class if not all_to_all else (gt + 1) % num_classes
             if gt != tc:
@@ -164,12 +174,81 @@ def get_poisoned_dataset(is_train: bool, dataset: torch.utils.data.Dataset, samp
                     gt = tc if int(gt) == int(source_label) else gt
 
                 img = F.grid_sample(img.unsqueeze(0), grid_temps, align_corners=True)[0]
+                poison_id.append(i)
             img_set.append(img.unsqueeze(0))
-            label_set.append(gt)
+            label_set.append(gt_type(gt))
         img_set = torch.cat(img_set, dim=0)
-        label_set = torch.LongTensor(label_set)
+        poison_indices = poison_id
+        
 
-    return img_set, label_set, poison_indices, cover_indices
-    # TODO bayad in dataset haye return shode ro ye Dataset class dorost koni va be una tabdil koni ghable return.
-    #  hala soale asli ine ke: aya tuye Datasete jadid transformation mikhaim? Aya tuye dataset Avvaliey bayad
-    #  transformation mizadim? Aya moghe transform kardane khode image bayad rushun taghiir bedim ya na?
+
+    return PoisonedDataset(img_set, label_set, poison_indices, cross_indices)
+
+
+
+class PoisonedDataset(torch.utils.data.Dataset):
+        def __init__(self, images, labels, poison_indices, cross_indices):
+            self.images = images
+            self.labels = labels
+            self.poison_indices = poison_indices
+            self.cross_indices = cross_indices
+
+        def __len__(self):
+            return len(self.images)
+
+        def __getitem__(self, idx):
+            return self.images[idx], self.labels[idx]
+        
+
+# The following classes: ProbTransform, PostTensorTransform are take from the want original code:
+# https://github.com/VinAIResearch/Warping-based_Backdoor_Attack-release.git
+# In the original code, they applied PostTensorTransform on images after poisoning the image and before feeding it to the model. 
+# They used this just in training phase.
+
+class ProbTransform(torch.nn.Module):
+    def __init__(self, f, p=1):
+        super(ProbTransform, self).__init__()
+        self.f = f
+        self.p = p
+
+    def forward(self, x):  # , **kwargs):
+        if random.random() < self.p:
+            return self.f(x)
+        else:
+            return x
+
+class PostTensorTransform(torch.nn.Module):
+
+    """
+    The PostTensorTransform class is a subclass of torch.nn.Module that applies a series of transformations to an input tensor.
+    The transformations include random cropping, random rotation, and random horizontal flipping.
+
+    Attributes:
+        random_crop (ProbTransform): An instance of the ProbTransform class that applies random cropping to the input tensor.
+        random_rotation (ProbTransform): An instance of the ProbTransform class that applies random rotation to the input tensor.
+        random_horizontal_flip (kornia.augmentation.RandomHorizontalFlip): A method that applies random horizontal flipping to the input tensor.
+
+    Args:
+        opt (object): An object that contains the configuration parameters for the transformations. It should have the following attributes:
+            input_height (int): The height of the input tensor.
+            input_width (int): The width of the input tensor.
+            random_crop (int): The padding size for the random crop transformation.
+            random_rotation (float): The degree range for the random rotation transformation.
+            dataname (str): The name of the dataset. If it is "cifar10" or "tinyimagenet", random horizontal flipping will be applied.
+    """
+
+    
+    def __init__(self, opt):
+        super(PostTensorTransform, self).__init__()
+        self.random_crop = ProbTransform(
+            A.RandomCrop((opt.input_height, opt.input_width), padding=opt.random_crop), p=0.8
+        )
+        self.random_rotation = ProbTransform(A.RandomRotation(opt.random_rotation), p=0.5)
+        if opt.dataname in ["cifar10", 'tinyimagenet']:
+            self.random_horizontal_flip = A.RandomHorizontalFlip(p=0.5)
+
+    def forward(self, x):
+        for module in self.children():
+            x = module(x)
+        return x
+    
