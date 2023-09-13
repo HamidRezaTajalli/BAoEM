@@ -94,3 +94,6 @@ def stack_ensemble(k_fold: int, dataname: str, batch_size: int, n_epochs: int, m
         total_samples += labels.size(0)
     accuracy = (correct_predictions / total_samples) * 100
     print(f'Test Accuracy of the model on the test images: {accuracy}%')
+
+
+# TODO: check for each individual model accuracy after training.

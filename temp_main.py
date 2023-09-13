@@ -3,7 +3,7 @@ import torch
 
 def main():
     # Define the parameters for stack_ensemble
-    k_fold = 5
+    k_fold = None
     dataname = 'cifar10'  # replace with your dataset name
     batch_size = 128
     n_epochs = 15
