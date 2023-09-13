@@ -87,7 +87,7 @@ def train_stacked_models(dataloader, models, n_epochs, optimizers, loss_function
     plt.xlabel('Epoch')
     plt.ylabel('Average Loss')
     plt.legend()
-    plt.show()
+    # plt.show()
     
     # Save the plot if save_plot is True
     if save_plot:

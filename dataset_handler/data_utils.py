@@ -80,7 +80,7 @@ def create_stacked_dataset(models, dataloader, device):
         stacked_output = stack_outputs(models, data, device)
         stacked_samples.append(stacked_output)
         stacked_labels.append(labels)
-    stacked_dataset = torch.utils.data.TensorDataset(torch.cat(stacked_samples, dim=0), torch.cat(stacked_labels, dim=0))
+    stacked_dataset = torch.utils.data.TensorDataset(torch.cat(stacked_samples, dim=0).to('cpu'), torch.cat(stacked_labels, dim=0).to('cpu'))
     return stacked_dataset
 
 
