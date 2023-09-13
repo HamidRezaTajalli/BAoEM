@@ -24,12 +24,12 @@
 #SBATCH --job-name=BAoELM
 #SBATCH --account=icis
 #SBATCH --partition=icis
-#SBATCH --qos=icis-large                         # see https://wiki.icis-intra.cs.ru.nl/Cluster#Job_Class_Specifications
+#SBATCH --qos=icis-small                         # see https://wiki.icis-intra.cs.ru.nl/Cluster#Job_Class_Specifications
 #SBATCH --nodes=1                                # node count
 ##SBATCH --nodelist=cn114                        # run in this specific node
 #SBATCH --ntasks=1                               # total number of tasks across all nodes
 #SBATCH --cpus-per-task=4                        # cpu-cores per task
-##SBATCH --mem-per-cpu=16G                         # memory per cpu-core
+##SBATCH --mem-per-cpu=32G                         # memory per cpu-core
 #SBATCH --mem=64G                                # memory per node
 ##SBATCH --gres=gpu:rtx_a5000:1                   # assign 1 RTX A5000 GPU card
 #SBATCH --time=0-23:00:00

@@ -200,7 +200,7 @@ class PoisonedDataset(torch.utils.data.Dataset):
             return self.images[idx], self.labels[idx]
         
 
-# The following classes: ProbTransform, PostTensorTransform are take from the want original code:
+# The following classes: ProbTransform, PostTensorTransform are taken from the wanet original code:
 # https://github.com/VinAIResearch/Warping-based_Backdoor_Attack-release.git
 # In the original code, they applied PostTensorTransform on images after poisoning the image and before feeding it to the model. 
 # They used this just in training phase.

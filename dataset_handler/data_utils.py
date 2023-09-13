@@ -4,6 +4,11 @@ from torchvision import transforms
 from sklearn.utils import resample
 from PIL import Image
 
+from training_utils import stack_outputs
+
+from dataset_handler.mnist import get_mnist_datasets_simple
+from dataset_handler.cifar10 import get_cifar10_datasets_simple
+
 
 class BtstrpDataset(torch.utils.data.Dataset):
     def __init__(self, data, labels):
@@ -50,3 +55,39 @@ class Denormalize(torchvision.transforms.Normalize):
         std_inv = 1 / std
         mean_inv = -mean * std_inv
         super().__init__(mean=mean_inv, std=std_inv, inplace=inplace)
+
+
+
+def create_stacked_dataset(models, dataloader, device):
+    """
+    Creates a stacked dataset from the given models and dataloader.
+
+    This function takes a list of models and a dataloader, and generates a new dataset where each sample is the stacked
+    output of all models for the corresponding input sample in the dataloader. The labels of the new dataset are the same
+    as the original dataloader.
+
+    Args:
+        models (list): A list of PyTorch models.
+        dataloader (DataLoader): A PyTorch DataLoader object.
+
+    Returns:
+        TensorDataset: A PyTorch TensorDataset object containing the stacked outputs of the models as data and the original
+        labels from the dataloader.
+    """
+    stacked_samples = []
+    stacked_labels = []
+    for batch_idx, (data, labels) in enumerate(dataloader):
+        stacked_output = stack_outputs(models, data, device)
+        stacked_samples.append(stacked_output)
+        stacked_labels.append(labels)
+    stacked_dataset = torch.utils.data.TensorDataset(torch.cat(stacked_samples, dim=0), torch.cat(stacked_labels, dim=0))
+    return stacked_dataset
+
+
+def get_datasets_simple(dataname: str, root_path='./data/CIFAR10/', tr_vl_split=None):
+    Switcher = {
+        'mnist': get_mnist_datasets_simple,
+        'cifar10': get_cifar10_datasets_simple
+    }
+    func = Switcher.get(dataname, lambda: "Invalid dataset name")
+    return func(root_path, tr_vl_split)
