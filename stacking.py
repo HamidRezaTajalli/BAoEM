@@ -64,7 +64,7 @@ def stack_ensemble(k_fold: int, dataname: str, batch_size: int, n_epochs: int, m
             train_subsampler = SubsetRandomSampler(train_idx)
             val_subsampler = SubsetRandomSampler(val_idx)
             train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_subsampler, num_workers=2)
-            train_stacked_models(train_dataloader, model_list, n_epochs, optimizers, loss_function, device, save_plot=True)
+            train_stacked_models(train_dataloader, model_list, n_epochs, optimizers, loss_function, device)
             validation_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=val_subsampler, num_workers=2)
             meta_dataset_list.append(create_stacked_dataset(model_list, validation_dataloader, device))
         meta_dataset = torch.utils.data.ConcatDataset(meta_dataset_list)

@@ -3,10 +3,10 @@ import torch
 
 def main():
     # Define the parameters for stack_ensemble
-    k_fold = None
+    k_fold = 5
     dataname = 'cifar10'  # replace with your dataset name
-    batch_size = 64
-    n_epochs = 1
+    batch_size = 128
+    n_epochs = 15
     models_name_list = ['resnet18', 'vgg19', 'resnet18']  # replace with your model names
     is_pretrained_list = [True, False]  # replace with your pretrained flags
     optim_list = ['sgd', 'adam', 'sgd'] # replace with your optimizers
