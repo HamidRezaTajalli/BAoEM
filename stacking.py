@@ -4,7 +4,7 @@ from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from sklearn.model_selection import KFold
 
-from dataset_handler.data_utils import create_stacked_dataset, get_datasets_simple
+from dataset_handler.data_utils import create_stacked_dataset, get_datasets
 from training_utils import train_stacked_models, train_one_epoch, stack_outputs
 from models import get_num_classes, get_input_channels, get_model
 
@@ -32,16 +32,17 @@ def stack_ensemble(k_fold: int, dataname: str, batch_size: int, n_epochs: int, m
     # Get the number of classes and input channels from the dataset
     num_classes = get_num_classes(dataname)
     n_in_channels = get_input_channels(dataname)
+    lr = 0.001
 
     # Create a list of models
     model_list = [get_model(model_name, num_classes, n_in_channels, pretrained) for model_name, pretrained in zip(models_name_list, is_pretrained_list)]
 
     # Define the optimizers
     optim_dict = {'sgd': optim.SGD, 'adam': optim.Adam}
-    optimizers = [optim_dict[optim_name](model.parameters(), lr=0.001) for model, optim_name in zip(model_list, optim_list)]
+    optimizers = [optim_dict[optim_name](model.parameters(), lr=lr) for model, optim_name in zip(model_list, optim_list)]
 
     # Define the loss function
-    loss_function = CrossEntropyLoss()  # Replace with the actual loss function
+    loss_function = CrossEntropyLoss() 
 
     # Initialize the meta-dataset
     meta_dataset = None
@@ -49,7 +50,7 @@ def stack_ensemble(k_fold: int, dataname: str, batch_size: int, n_epochs: int, m
     # If k_fold is None, split the train_dataset into training and validation sets based on tr_vl_split ratio. 
     # then train the base models on the training set and create the meta-dataset using the validation set.
     if k_fold is None:
-        train_dataset, validation_dataset, test_dataset, classes_names = get_datasets_simple(dataname=dataname, tr_vl_split=tr_vl_split)
+        train_dataset, validation_dataset, test_dataset, classes_names = get_datasets(dataname=dataname, tr_vl_split=tr_vl_split)
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
         train_stacked_models(train_dataloader, model_list, n_epochs, optimizers, loss_function, device)
         validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -57,7 +58,7 @@ def stack_ensemble(k_fold: int, dataname: str, batch_size: int, n_epochs: int, m
 
     # If k_fold is not None, perform k-fold cross-validation and create the meta-dataset using the k-fold cross validation sets.
     else:        
-        train_dataset, test_dataset, classes_names = get_datasets_simple(dataname=dataname, tr_vl_split=None)
+        train_dataset, test_dataset, classes_names = get_datasets(dataname=dataname, tr_vl_split=None)
         meta_dataset_list = []
         kf = KFold(n_splits=k_fold, shuffle=False)
         for train_idx, val_idx in kf.split(train_dataset.data):
@@ -68,6 +69,21 @@ def stack_ensemble(k_fold: int, dataname: str, batch_size: int, n_epochs: int, m
             validation_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=val_subsampler, num_workers=2)
             meta_dataset_list.append(create_stacked_dataset(model_list, validation_dataloader, device))
         meta_dataset = torch.utils.data.ConcatDataset(meta_dataset_list)
+
+    # Test the performance of models in model_list on validation data
+    with torch.no_grad():
+        for model in model_list:
+            model.eval()
+            total_samples = 0
+            correct_predictions = 0
+            for batch_idx, (data, labels) in enumerate(validation_dataloader):
+                data, labels = data.to(device), labels.to(device)
+                output = model(data)
+                _, predicted = torch.max(output.data, 1)
+                correct_predictions += (predicted == labels).sum().item()
+                total_samples += labels.size(0)
+            accuracy = (correct_predictions / total_samples) * 100
+            print(f'Validation Accuracy of the model {model.__class__.__name__} on the validation images: {accuracy}%')
 
 
     meta_dataloader = DataLoader(meta_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -85,15 +101,17 @@ def stack_ensemble(k_fold: int, dataname: str, batch_size: int, n_epochs: int, m
     meta_model.eval()
     total_samples = 0
     correct_predictions = 0
-    for batch_idx, (data, labels) in enumerate(test_dataloader):
-        data, labels = data.to(device), labels.to(device)
-        meta_input = stack_outputs(model_list, data, device)
-        output = meta_model(meta_input)
-        _, predicted = torch.max(output.data, 1)
-        correct_predictions += (predicted == labels).sum().item()
-        total_samples += labels.size(0)
+    with torch.no_grad():
+        for batch_idx, (data, labels) in enumerate(test_dataloader):
+            data, labels = data.to(device), labels.to(device)
+            meta_input = stack_outputs(model_list, data, device)
+            output = meta_model(meta_input)
+            _, predicted = torch.max(output.data, 1)
+            correct_predictions += (predicted == labels).sum().item()
+            total_samples += labels.size(0)
     accuracy = (correct_predictions / total_samples) * 100
     print(f'Test Accuracy of the model on the test images: {accuracy}%')
 
 
 # TODO: check for each individual model accuracy after training.
+# TODO: check of the effect of other hyperparameters on the performance of the ensemble, like: number of epochs, batch size, learning rate, etc

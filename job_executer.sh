@@ -21,20 +21,20 @@
 #OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #SOFTWARE.
 
-#SBATCH --job-name=BAoELM
+#SBATCH --job-name=BAoEM
 #SBATCH --account=icis
 #SBATCH --partition=icis
-#SBATCH --qos=icis-small                         # see https://wiki.icis-intra.cs.ru.nl/Cluster#Job_Class_Specifications
+#SBATCH --qos=icis-large                         # see https://wiki.icis-intra.cs.ru.nl/Cluster#Job_Class_Specifications
 #SBATCH --nodes=1                                # node count
 ##SBATCH --nodelist=cn114                        # run in this specific node
 #SBATCH --ntasks=1                               # total number of tasks across all nodes
 #SBATCH --cpus-per-task=4                        # cpu-cores per task
-##SBATCH --mem-per-cpu=32G                         # memory per cpu-core
-#SBATCH --mem=64G                                # memory per node
-##SBATCH --gres=gpu:rtx_a5000:1                   # assign 1 RTX A5000 GPU card
-#SBATCH --time=0-23:00:00
-##SBATCH --output=/home/%u/log/slurm/%j.out       # stdout output file
-##SBATCH --error=/home/%u/log/slurm/%j.err        # stderr output file
+##SBATCH --mem-per-cpu=16G                         # memory per cpu-core
+#SBATCH --mem=16G                                # memory per node
+#SBATCH --gres=gpu:1                             # assign 1 RTX A5000 GPU card
+#SBATCH --time=0-05:20:00
+##SBATCH --output=/home/%u/logs/slurm/%j.out       # stdout output file
+##SBATCH --error=/home/%u/logs/slurm/%j.err        # stderr output file
 #SBATCH --mail-type=END,FAIL                     # send email when job ends or fails
 #SBATCH --mail-user=hamidreza.tajalli@ru.nl      # email address
 
@@ -45,22 +45,7 @@
 source /home/htajalli/.bashrc
 conda activate AISY
 
-#python main_direct.py --dataname mnist --elmtype poelm
-#python main_direct.py --dataname mnist --elmtype drop-elm
-#python main_direct.py --dataname mnist --elmtype telm
-#python main_direct.py --dataname mnist --elmtype mlelm
-#
-#python main_direct.py --dataname fmnist --elmtype poelm
-#python main_direct.py --dataname fmnist --elmtype drop-elm
-#python main_direct.py --dataname fmnist --elmtype telm
-#python main_direct.py --dataname fmnist --elmtype mlelm
-#
-#python main_direct.py --dataname svhn --elmtype poelm
-#python main_direct.py --dataname svhn --elmtype drop-elm
-#python main_direct.py --dataname svhn --elmtype telm
-#python main_direct.py --dataname svhn --elmtype mlelm
-#
-#python main_direct.py --dataname cifar10 --elmtype poelm
-#python main_direct.py --dataname cifar10 --elmtype drop-elm
-#python main_direct.py --dataname cifar10 --elmtype telm
-#python main_direct.py --dataname cifar10 --elmtype mlelm
+# python backdoor_trial_copy.py
+python backdooring_while_train.py --place 1
+# python bdtraining_single_model.py --model vgg19
+# python backdooring_while_train_res.py --place 2

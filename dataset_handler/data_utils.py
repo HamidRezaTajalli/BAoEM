@@ -6,8 +6,9 @@ from PIL import Image
 
 from training_utils import stack_outputs
 
-from dataset_handler.mnist import get_mnist_datasets_simple
-from dataset_handler.cifar10 import get_cifar10_datasets_simple
+from dataset_handler.mnist import get_mnist_datasets, get_general_transform_mnist
+from dataset_handler.cifar10 import get_cifar10_datasets, get_general_transform_cifar10
+from attacks.badnet import get_poisoned_dataset
 
 
 class BtstrpDataset(torch.utils.data.Dataset):
@@ -84,10 +85,26 @@ def create_stacked_dataset(models, dataloader, device):
     return stacked_dataset
 
 
-def get_datasets_simple(dataname: str, root_path='./data/CIFAR10/', tr_vl_split=None):
+def get_datasets(dataname: str, root_path=None, tr_vl_split=None, transform=None):
+    if root_path is None:
+        root_path = './data/' + dataname.upper() + '/'
     Switcher = {
-        'mnist': get_mnist_datasets_simple,
-        'cifar10': get_cifar10_datasets_simple
+        'mnist': (get_mnist_datasets, get_general_transform_mnist),
+        'cifar10': (get_cifar10_datasets, get_general_transform_cifar10)
     }
-    func = Switcher.get(dataname, lambda: "Invalid dataset name")
-    return func(root_path, tr_vl_split)
+    func = Switcher.get(dataname, lambda: "Invalid dataset name")[0]
+    transform = Switcher.get(dataname, lambda: "Invalid dataset name")[1]() if transform is None else transform
+
+    return func(root_path, tr_vl_split, transform=transform)
+
+
+def poison_dataset(dataname: str, dataset, is_train, attack_name, post_transform=None):
+    poison_dataset = None
+    if attack_name == 'badnet':
+        poisoned_dataset = get_poisoned_dataset(is_train=is_train, trigger_size=2, trigger_color='green', trigger_pos='top-right', target_lbl=0, epsilon=0.02, clean_dataset=dataset,
+                         source_label=None)
+        if post_transform is not None:
+            poisoned_dataset.set_transform(post_transform)
+
+    return poisoned_dataset
+

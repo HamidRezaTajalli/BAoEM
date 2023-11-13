@@ -5,286 +5,143 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset
 
-torch.manual_seed(47)
+# torch.manual_seed(47)
 import numpy as np
 
-np.random.seed(47)
+# np.random.seed(47)
 
 
-def poison_img(img, trigger_obj):
-    """Poison the training samples by stamping the trigger."""
-    # trigger = trigger_obj.crafted_trigger
-    # beta = bd_opacity
-    # sample = cv2.addWeighted(img, 1.0, trigger, beta, 0)
-    # # sample = np.where(trigger==0, img, trigger)
-    # return_value = (sample.reshape(32, 32, 3)) if trig_ds.lower() == 'cifar10' else (sample.reshape(28, 28, 1))
-    return_value = trigger_obj.trigger_square_img(img)
-    return return_value
-
-
-class TriggerInfeasible(Exception):
-    """Exception raised when wrong dimensions of the trigger were given"""
-
-    def __init__(self, size, pos, correct, shape):
-        self.size = size
-        self.pos = pos
-        self.correct = correct
-        self.shape = shape
-        m = (f"Cannot apply {self.shape}-trigger with size {self.size} at "
-             f"{self.pos} to image with size {correct}")
-        self.message = m
-        super().__init__(self.message)
-
-    def __str__(self):
-        return f"{self.message}"
-
-
-class Dimensions:
-    """A class that keeps the dimensiosn of the used datasets."""
-
-    # Use this dictionary to check on the validity of the position of the
-    # trigger and its size.
-    datasets = {"mnist": (28, 28, 1),
-                "cifar10": (32, 32, 3),
-                "fmnist": (28, 28, 1),
-                "emnist": (28, 28, 1)}
-
-    def __init__(self, dataset):
-        if dataset in self.datasets:
-            self.dims = self.datasets[dataset]
-        else:
-            raise NotImplementedError(f"{dataset} dataset is not known")
-
-    def get_dims(self):
-        return self.dims
-
-
-class GenerateTrigger:
+def create_trigger(data: np.ndarray, color, trigger_size, pos='top-right') -> np.ndarray:
     """
-    A class that creates a random pattern that is used as a trigger for an
-    image dataset.
+    Create trigger
     """
 
-    def __init__(self, size, trigger_position, dataset, continuous=True,
-                 shape="square"):
-        # Use a hardcoded seed for reproducibility
-        np.random.seed(56)
-        dims = Dimensions(dataset).get_dims()
+    if color == 'white':
+        # Case with 1 channel
+        if data.shape[0] == 1:
+            value = 255
+        # Case with 3 channels
+        elif data.shape[0] == 3:
+            value = [[[1]], [[1]], [[1]]]
 
-        if size[0] != size[1]:
-            raise TriggerInfeasible(size, trigger_position, dims, shape)
+    elif color == 'black':
+        # Case with 1 channel
+        if data.shape[0] == 1:
+            value = 0
+        # Case with 3 channels
+        elif data.shape[0] == 3:
+            value = [[[0]], [[0]], [[0]]]
 
-        if trigger_position not in ["upper-left", "upper-mid", "upper-right", "mid-left", "mid-mid", "mid-right",
-                                    "lower-left",
-                                    "lower-mid", "lower-right"]:
-            raise TriggerInfeasible(size, trigger_position, dims, shape)
+    elif color == 'green':
+        if data.shape[0] == 1:
+            value = 0
+        elif data.shape[0] == 3:
+            value = [[[0]], [[1]], [[0]]]
 
-        if shape not in ["square", "line"]:
-            raise TriggerInfeasible(size, trigger_position, dims, shape)
+    else:
+        raise ValueError('Color not supported')
 
-        if shape == "square":
-            if size[0] > dims[0] or size[1] > dims[1]:
-                raise TriggerInfeasible(size, trigger_position, dims, shape)
-        elif shape == "line":
-            if (size[0] * size[1]) > (dims[0] * dims[1]):
-                raise TriggerInfeasible(size, trigger_position, dims, shape)
+    width = data.shape[1]
+    height = data.shape[2]
+    size_width = trigger_size
+    size_height = trigger_size
 
-        self.dims = dims
-        self.shape = shape
-        self.size = size
-        self.pos_label = trigger_position
-        self.pos = self.gen_pos(trigger_position)
-        self.continuous = continuous
-        self.crafted_trigger = self.trigger()
+    if pos == 'top-left':
+        x_begin = 0
+        x_end = size_width
+        y_begin = 0
+        y_end = size_height
 
-    def _gen_pos_square(self):
-        """Find the position of the upper left corner of a square trigger."""
-        if self.pos_label == "upper-left":
-            return (0, 0)
-        elif self.pos_label == "upper-mid":
-            return (0, self.dims[1] // 2 - self.size[1] // 2)
-        elif self.pos_label == "upper-right":
-            return (0, self.dims[1] - self.size[1])
+    elif pos == 'top-right':
+        x_begin = int(width - size_width)
+        x_end = width
+        y_begin = 0
+        y_end = size_height
 
-        elif self.pos_label == "mid-left":
-            return (self.dims[0] // 2 - self.size[0] // 2, 0)
-        elif self.pos_label == "mid-mid":
-            return (self.dims[0] // 2 - self.size[0] // 2,
-                    self.dims[1] // 2 - self.size[1] // 2)
-        elif self.pos_label == "mid-right":
-            return (self.dims[0] // 2 - self.size[0] // 2, self.dims[1] - self.size[1])
+    elif pos == 'bottom-left':
+        x_begin = 0
+        x_end = size_width
+        y_begin = int(height - size_height)
+        y_end = height
+    elif pos == 'bottom-right':
+        x_begin = int(width - size_width)
+        x_end = width
+        y_begin = int(height - size_height)
+        y_end = height
 
-        elif self.pos_label == "lower-left":
-            return (self.dims[0] - self.size[0], 0)
-        elif self.pos_label == "lower-mid":
-            return (self.dims[0] - self.size[0], self.dims[1] // 2 - self.size[1] // 2)
-        elif self.pos_label == "lower-right":
-            return (self.dims[0] - self.size[0], self.dims[1] - self.size[1])
+    elif pos == 'middle':
+        x_begin = int((width - size_width) / 2)
+        x_end = int((width + size_width) / 2)
+        y_begin = int((height - size_height) / 2)
+        y_end = int((height + size_height) / 2)
 
-    def _gen_pos_line(self):
-        """Find the position of the upper left pixel for the line trigger."""
-        num_lines = math.ceil(self.pixels / self.dims[0])
-        if self.pos_label == "upper-left":
-            # Always start from the beginning
-            return (0, 0)
-        elif self.pos_label == "mid":
-            dataset_mid = self.dims[0] / 2
-            if dataset_mid % 2 == 0:
-                x = dataset_mid - math.ceil(num_lines / 2)
-            else:
-                dataset_mid = math.floor(dataset_mid)
-                x = dataset_mid - math.floor(num_lines / 2)
-            return (int(x), 0)
-        elif self.pos_label == "lower-right":
-            return (self.dims[0] - num_lines, 0)
+    else:
+        raise ValueError('Position not supported')
 
-    def gen_pos(self, pos_label):
-        """Create a tuple with the coordinates of the trigger."""
-        if self.shape == "square":
-            return self._gen_pos_square()
-        elif self.shape == "line":
-            self.pixels = self.size[0] * self.size[1]
-            return self._gen_pos_line()
-
-    def trigger_square_img(self, img):
-        """Create a square trigger."""
-        base_x = self.pos[0]
-        base_y = self.pos[1]
-        for x in range(self.size[0]):
-            for y in range(self.size[1]):
-                # random_value = np.random.random((self.dims[2]))
-                img[base_x + x][base_y + y] = self.crafted_trigger[base_x + x][base_y + y]
-        return img
-
-    def trigger_square(self, trigger):
-        """Create a square trigger."""
-        if self.continuous:
-            base_x = self.pos[0]
-            base_y = self.pos[1]
-            for x in range(self.size[0]):
-                for y in range(self.size[1]):
-                    trigger[base_x + x][base_y + y] = \
-                        np.random.random((self.dims[2]))
-        else:
-            # The trigger that is used until now is a square so only one
-            # dimension is enough for these calculations
-            step_x = math.floor(self.dims[0] / (self.size[0] / 2))
-            # to come up with the following equation I used the following
-            # equation:
-            # (dims[0]/step_x - 1)*x + size <= dims
-            # where dims[0]/step_x - 1 is the amount of steps that are applied
-            # for the broken square. I solved that for the equality and came up
-            # with the following step_y.
-            step_y = (self.dims[1] - self.size[0]) * step_x
-            step_y = math.floor(step_y / (self.dims[1] - step_x))
-            # The self pos variable is not used for now.
-            curr_x = curr_y = 0
-            count = 0
-
-            while (curr_x < self.dims[0] and count < self.size[0]):
-                i = curr_x % self.dims[0]
-                for y in range(self.size[1]):
-                    j = (y + curr_y) % self.dims[1]
-                    trigger[i][j] = np.random.random((self.dims[2]))
-
-                count += 1
-
-                # Add step in the second iteration to create pairs of lines.
-                if count % 2 == 0:
-                    curr_x += step_x - 1
-                    curr_y += step_y
-                else:
-                    curr_x += 1
-
-        return trigger
-
-    def trigger_line(self, trigger):
-        """Create a line-shaped trigger."""
-        base_x = self.pos[0]
-        base_y = self.pos[1]
-
-        pixels_filled = 0
-        while pixels_filled < self.pixels:
-            i = pixels_filled // self.dims[1]
-            j = pixels_filled % self.dims[1]
-            trigger[i + base_x][j + base_y] = np.random.random((self.dims[2]))
-            pixels_filled += 1
-
-        return trigger
-
-    def trigger(self):
-        """
-        Returns a random pattern that is used as a trigger.
-
-        If the trigger is continuous a square of pixels is filled with random
-        values. In the opposite case the square trigger is broken to pairs of
-        lines that are distributed in various positions in the image.
-        """
-        # For cifar I should return an ndarray with 32 32 3 dims with values
-        # from 0 to 1 (dtype=float32)
-        trigger = np.zeros(self.dims, dtype=np.float32)
-        if self.shape == "square":
-            trigger = self.trigger_square(trigger)
-        elif self.shape == "line":
-            trigger = self.trigger_line(trigger)
-
-        self.trigger_img = trigger
-        return trigger
-
-    def show_trigger(self):
-        """Show the trigger that was generated."""
-        plt.imshow(self.trigger_img)
-        plt.show()
-
-    def save_trigger(self, filename):
-        """Save the trigger that was generated."""
-        img = self.trigger_img
-        img = img * 255
-        img = img.astype(np.int32)
-        cv2.imwrite(filename, img)
+    data[:, x_begin:x_end, y_begin:y_end] = value
 
 
-def poison_batch(batch, trigger_obj, epsilon, backdoor_label):
-    data = batch[0].cpu()
-    labels = batch[1].cpu()
-    trigger_samples = int(epsilon * len(data))
-    samples_index = np.random.choice(len(data), size=trigger_samples, replace=False)
+    return data
 
-    for ind, item in enumerate(data):
-        if ind in samples_index:
-            data[ind] = torch.from_numpy(
-                poison_img(item.cpu().permute(1, 2, 0).numpy(), trigger_obj)).permute(2, 0, 1)
-            labels[ind] = backdoor_label
 
-    return data, labels
+
+# def poison_batch(batch, trigger_obj, epsilon, backdoor_label):
+#     data = batch[0].cpu()
+#     labels = batch[1].cpu()
+#     trigger_samples = int(epsilon * len(data))
+#     samples_index = np.random.choice(len(data), size=trigger_samples, replace=False)
+
+#     for ind, item in enumerate(data):
+#         if ind in samples_index:
+#             data[ind] = torch.from_numpy(
+#                 poison_img(item.cpu().permute(1, 2, 0).numpy(), trigger_obj)).permute(2, 0, 1)
+#             labels[ind] = backdoor_label
+
+#     return data, labels
 
 
 class BackdooredDataset(Dataset):
-    def __init__(self, backdoored_data):
+    def __init__(self, backdoored_data, transform=None, target_transform=None):
         """
         Args:
             backdoored_data (list): List of tuples with (image, label).
         """
         self.data = backdoored_data
+        self.transform = transform
+        self.target_transform = target_transform
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        return self.data[idx]
+        if self.transform is not None:
+            data = self.transform(self.data[idx][0])
+        else:
+            data = self.data[idx][0]
+        if self.target_transform is not None:
+            label = self.target_transform(self.data[idx][1])
+        else:
+            label = self.data[idx][1]
+        return data, label
+    
+    def set_transform(self, transform):
+        self.transform = transform
+    def set_target_transform(self, target_transform):
+        self.target_transform = target_transform
 
 
-def get_poisoned_dataset(is_train: bool, trigger_obj, target_lbl: int, epsilon: float, clean_dataset,
-                         source_label=None):
+def get_poisoned_dataset(clean_dataset, is_train: bool, trigger_size, trigger_color: str, trigger_pos: str, target_lbl: int, epsilon: float, source_label=None):
     backdoored_ds = []
     samples_index = None
     if is_train:
         trigger_samples = int(epsilon * len(clean_dataset))
-        samples_index = np.random.choice(len(clean_dataset), size=trigger_samples, replace=False)
+        samples_index = np.random.choice(len(clean_dataset), size=trigger_samples, replace=False)        
 
     for idx, (image, label) in enumerate(clean_dataset):
-        poisoned_image = torch.from_numpy(poison_img(image.cpu().permute(1, 2, 0).numpy(), trigger_obj)).permute(2, 0,
-                                                                                                                 1)
+        poisoned_image = image.clone().numpy()
+        poisoned_image = torch.from_numpy(create_trigger(data=poisoned_image, color=trigger_color, trigger_size=trigger_size,
+                                        pos=trigger_pos))
+        
         if source_label is None:
             if is_train:
                 if idx in samples_index:

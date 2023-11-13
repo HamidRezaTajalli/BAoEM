@@ -7,15 +7,35 @@ import numpy as np
 
 np.random.seed(53)
 
-def get_cifar10_datasets_simple(root_path='./data/CIFAR10/', tr_vl_split=None):
-    classes_names = ('Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck')
-    transforms_dict = {
-        'train': transforms.Compose([transforms.ToTensor()]),
-        'test': transforms.Compose([transforms.ToTensor()])
-    }
 
-    train_dataset = datasets.CIFAR10(root=root_path, train=True, transform=transforms_dict['train'], download=True)
-    test_dataset = datasets.CIFAR10(root=root_path, train=False, transform=transforms_dict['test'], download=True)
+class CustomCIFAR10(datasets.CIFAR10):
+        def set_transform(self, transform):
+            self.transform = transform
+
+        def set_target_transform(self, target_transform):
+            self.target_transform = target_transform
+
+
+def get_cifar10_datasets(root_path='./data/CIFAR10/', tr_vl_split=None, transform=None, target_transform=None):
+    """
+    This function downloads and prepares the CIFAR10 dataset.
+
+    Args:
+        root_path (str, optional): The path where the CIFAR10 dataset will be downloaded. Defaults to './data/CIFAR10/'.
+        tr_vl_split (float, optional): The ratio of the training set to the validation set. If None, the training set will not be split into training and validation sets. Defaults to None.
+
+    Returns:
+        tuple: Depending on the value of tr_vl_split, it returns:
+            - If tr_vl_split is not None: A tuple (train_dataset, validation_dataset, test_dataset, classes_names).
+            - If tr_vl_split is None: A tuple (train_dataset, test_dataset, classes_names).
+    """
+
+    
+    classes_names = ('Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck')
+
+
+    train_dataset = CustomCIFAR10(root=root_path, train=True, transform=transform, target_transform=target_transform, download=True)
+    test_dataset = CustomCIFAR10(root=root_path, train=False, transform=transform, target_transform=target_transform, download=True)
 
     if tr_vl_split is not None:
         train_length = int(len(train_dataset) * tr_vl_split)
@@ -40,3 +60,21 @@ def get_cifar10_datasets_simple(root_path='./data/CIFAR10/', tr_vl_split=None):
 
 #     return train_dataloader, validation_dataloader, test_dataloader
 
+def get_general_transform_cifar10():
+    gnrl_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize(128),
+            transforms.CenterCrop(128),
+            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[
+                0.247, 0.243, 0.261]),
+        ])
+    return gnrl_transform
+
+def get_post_poison_transform_cifar10():
+    post_poison_transform = transforms.Compose([
+            transforms.Resize(128),
+            transforms.CenterCrop(128),
+            transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[
+                0.247, 0.243, 0.261]),
+        ])
+    return post_poison_transform

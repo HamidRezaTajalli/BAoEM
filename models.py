@@ -23,22 +23,45 @@ def get_num_classes(dataset):
     num_classes_list = {'mnist': 10, 'fmnist': 10, 'cifar10': 10, 'cifar100': 100}
     return num_classes_list[dataset]
 
-def get_resnet18(pretrained, num_classes, in_channels):
-    model = torchvision.models.resnet18(pretrained=pretrained)
-    model.conv1 = torch.nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=7, stride=2, padding=3, bias=False)
-    model.fc = torch.nn.Linear(in_features=512, out_features=num_classes, bias=True)
+def get_resnet_model(model_name, pretrained, num_classes, in_channels):
+    if model_name == 'resnet18':
+        model_func = torchvision.models.resnet18
+        default_weights = torchvision.models.ResNet18_Weights.DEFAULT
+    elif model_name == 'resnet50':
+        model_func = torchvision.models.resnet50
+        default_weights = torchvision.models.ResNet50_Weights.DEFAULT
+    else:
+        raise ValueError('Invalid ResNet model name')
+
+    if pretrained and in_channels != 1:
+        model = model_func(weights=default_weights)
+        for name, param in model.named_parameters():
+            if 'bn' in name:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+        model.fc = torch.nn.Linear(in_features=model.fc.in_features, out_features=num_classes, bias=True)
+        model.fc.requires_grad = True
+    else:
+        model = model_func(num_classes=num_classes)
+        model.conv1 = torch.nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=7, stride=2, padding=3, bias=False)
     return model
 
-def get_resnet50(pretrained, num_classes, in_channels):
-    model = torchvision.models.resnet50(pretrained=pretrained)
-    model.conv1 = torch.nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=7, stride=2, padding=3, bias=False)
-    model.fc = torch.nn.Linear(in_features=2048, out_features=num_classes, bias=True)
-    return model
-
-def get_vgg19(pretrained, num_classes, in_channels):
-    model = torchvision.models.vgg19(pretrained=pretrained)
-    model.features[0] = torch.nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=3, padding=1)
-    model.classifier[6] = torch.nn.Linear(4096, num_classes)
+def get_vgg19_bn(pretrained, num_classes, in_channels):
+    
+    if pretrained and in_channels != 1:
+        default_weights = torchvision.models.VGG19_BN_Weights.DEFAULT
+        model = torchvision.models.vgg19_bn(weights=default_weights)
+        for param, layer_class in zip(model.features.parameters(), model.features):
+                if type(layer_class) is nn.BatchNorm2d:
+                    param.requires_grad = True
+                else:
+                    param.requires_grad = False
+        model.classifier[-1] = nn.Linear(model.classifier[-1].in_features, num_classes)
+        model.classifier.requires_grad = True
+    else:
+        model = torchvision.models.vgg19_bn(num_classes=num_classes)
+        model.features[0] = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=3, padding=1)
     return model
 
 class SimpleFeedForward(nn.Module):
@@ -57,17 +80,39 @@ class SimpleFeedForward(nn.Module):
 
 
 
+class AdvancedFeedForward(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(AdvancedFeedForward, self).__init__()
+        
+        # Define the layers
+        self.fc1 = nn.Linear(input_dim, hidden_dim)  # Input to Hidden Layer
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim) # Hidden to Hidden Layer
+        self.fc3 = nn.Linear(hidden_dim, output_dim) # Hidden to Output Layer
+        self.relu = nn.ReLU()  # Activation function
+        # self.dropout = nn.Dropout(0.5)  # Dropout layer
+        
+    def forward(self, x):
+        x = self.relu(self.fc1(x))
+        # x = self.dropout(x)
+        x = self.relu(self.fc2(x))
+        # x = self.dropout(x)
+        x = self.fc3(x)
+        return x
+
+
+
 def get_model(model_name, num_classes, in_channels, pretrained):
     model_name = model_name.lower()
-    if model_name == 'resnet18':
-        return get_resnet18(pretrained, num_classes, in_channels)
-    elif model_name == 'resnet50':
-        return get_resnet50(pretrained, num_classes, in_channels)
+    if model_name.startswith('resnet'):
+        return get_resnet_model(model_name, pretrained, num_classes, in_channels)
     elif model_name == 'vgg19':
-        return get_vgg19(pretrained, num_classes, in_channels)
+        return get_vgg19_bn(pretrained, num_classes, in_channels)
     elif model_name.startswith('simple_'):
         hidden_layer_num = int(model_name.split('_')[1])
         return SimpleFeedForward(in_channels, hidden_layer_num, num_classes)
+    elif model_name.startswith('advanced_'):
+        hidden_layer_num = int(model_name.split('_')[1])
+        return AdvancedFeedForward(in_channels, hidden_layer_num, num_classes)
     
     else:
         raise ValueError('Invalid model name')
