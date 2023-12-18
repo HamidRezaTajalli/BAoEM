@@ -8,6 +8,7 @@ from training_utils import stack_outputs
 
 from dataset_handler.mnist import get_mnist_datasets, get_general_transform_mnist
 from dataset_handler.cifar10 import get_cifar10_datasets, get_general_transform_cifar10
+from dataset_handler.gtsrb import get_gtsrb_datasets, get_general_transform_gtsrb
 from attacks.badnet import get_poisoned_dataset
 
 
@@ -59,7 +60,7 @@ class Denormalize(torchvision.transforms.Normalize):
 
 
 
-def create_stacked_dataset(models, dataloader, device):
+def create_stacked_dataset(models, dataloader, device='cpu'):
     """
     Creates a stacked dataset from the given models and dataloader.
 
@@ -90,7 +91,8 @@ def get_datasets(dataname: str, root_path=None, tr_vl_split=None, transform=None
         root_path = './data/' + dataname.upper() + '/'
     Switcher = {
         'mnist': (get_mnist_datasets, get_general_transform_mnist),
-        'cifar10': (get_cifar10_datasets, get_general_transform_cifar10)
+        'cifar10': (get_cifar10_datasets, get_general_transform_cifar10),
+        'gtsrb': (get_gtsrb_datasets, get_general_transform_gtsrb)
     }
     func = Switcher.get(dataname, lambda: "Invalid dataset name")[0]
     transform = Switcher.get(dataname, lambda: "Invalid dataset name")[1]() if transform is None else transform

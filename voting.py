@@ -3,16 +3,18 @@ import torch
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader
 
-from dataset_handler.data_utils import get_datasets, bootstrap_sample
+from dataset_handler.data_utils import get_datasets
 from training_utils import train_one_epoch, evaluate_one_epoch, vote
 from models import get_num_classes, get_input_channels, get_model
 
 import torch.optim as optim
 
-def bagging_ensemble(dataname: str, batch_size: int, n_epochs: int, models_name_list: List[str], 
-                   is_pretrained_list: List[bool], optim_list: List[str], device: torch.device, tr_vl_split=0.8) -> None:
+# The bagging is done by bootstrap sampling of same models on a dataset. but voting is done by different models trained on same datast!
+
+def voting_ensemble(dataname: str, batch_size: int, n_epochs: int, models_name_list: List[str], 
+                   is_pretrained_list: List[bool], optim_list: List[str], device: torch.device, tr_vl_split=0.8, strategy='hard') -> None:
     """
-    Creates an ensemble of models and trains them using bagging. Each model is trained on a bootstrap sample of the original dataset.
+    Creates an ensemble of models and trains them using voting. All models are trained on the same dataset.
     The ensemble is then tested on the test dataset.
 
     Args:
@@ -38,17 +40,15 @@ def bagging_ensemble(dataname: str, batch_size: int, n_epochs: int, models_name_
 
     criterion = CrossEntropyLoss()
     train_dataset, validation_dataset, test_dataset, classes_names = get_datasets(dataname=dataname, tr_vl_split=tr_vl_split)
+    train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
     validation_dataloader = DataLoader(validation_dataset, batch_size=validation_batch_size, shuffle=False)
     test_dataloader = DataLoader(test_dataset, batch_size=validation_batch_size, shuffle=False)
 
-    # Define Bagging Strategy
+    # Define Voting Strategy
     for i, model in enumerate(model_list):
         print(f"Model {i + 1}\n-------------------------------")
-        # Resample the data (with replacement)
-        resampled_dataset = bootstrap_sample(train_dataset)
-        train_dataloader = DataLoader(resampled_dataset, batch_size=train_batch_size, shuffle=True)
 
-        # Train the model on the resampled data
+        # Train the model on the same data
         for epoch in range(n_epochs):
             print(f"Epoch {epoch + 1}\n-------------------------------")
             train_lss = train_one_epoch(model, train_dataloader, optimizers[i], criterion, device)
@@ -63,9 +63,9 @@ def bagging_ensemble(dataname: str, batch_size: int, n_epochs: int, models_name_
             print(print_string)
 
     # Test the ensemble on the test data
-    test_acc = vote(model_list, device, test_dataloader, voting='hard')
+    test_acc = vote(model_list, device, test_dataloader, voting=strategy)
     print("------------Ensemble Test Accuracy---------")
     print_string = f"test accuracy: {test_acc:>6}"
     print(print_string)
     print("-------------------------------------------")
-
+    

@@ -10,6 +10,8 @@ from models import get_num_classes, get_input_channels, get_model
 
 import torch.optim as optim
 
+# The bagging is done by bootstrap sampling of same models on a dataset. but voting is done by different models trained on same datast!
+
 def stack_ensemble(k_fold: int, dataname: str, batch_size: int, n_epochs: int, models_name_list: List[str], 
                    is_pretrained_list: List[bool], optim_list: List[str], device: torch.device, mt_mdl_name: str='simple_2000', tr_vl_split=0.8) -> None:
     """
@@ -111,7 +113,3 @@ def stack_ensemble(k_fold: int, dataname: str, batch_size: int, n_epochs: int, m
             total_samples += labels.size(0)
     accuracy = (correct_predictions / total_samples) * 100
     print(f'Test Accuracy of the model on the test images: {accuracy}%')
-
-
-# TODO: check for each individual model accuracy after training.
-# TODO: check of the effect of other hyperparameters on the performance of the ensemble, like: number of epochs, batch size, learning rate, etc

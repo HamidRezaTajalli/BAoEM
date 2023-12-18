@@ -64,6 +64,54 @@ def get_vgg19_bn(pretrained, num_classes, in_channels):
         model.features[0] = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=3, padding=1)
     return model
 
+
+def get_efficientnet(model_name, pretrained, num_classes, in_channels):
+    if model_name == 'efficientnet-b0':
+        model_func = torchvision.models.efficientnet_b0
+        default_weights = torchvision.models.EfficientNet_B0_Weights.DEFAULT
+    elif model_name == 'efficientnet-b1':
+        model_func = torchvision.models.efficientnet_b1
+        default_weights = torchvision.models.EfficientNet_B1_Weights.DEFAULT
+    elif model_name == 'efficientnet-b2':
+        model_func = torchvision.models.efficientnet_b2
+        default_weights = torchvision.models.EfficientNet_B2_Weights.DEFAULT
+    elif model_name == 'efficientnet-b3':
+        model_func = torchvision.models.efficientnet_b3
+        default_weights = torchvision.models.EfficientNet_B3_Weights.DEFAULT
+    elif model_name == 'efficientnet-b4':
+        model_func = torchvision.models.efficientnet_b4
+        default_weights = torchvision.models.EfficientNet_B4_Weights.DEFAULT
+    elif model_name == 'efficientnet-b5':
+        model_func = torchvision.models.efficientnet_b5
+        default_weights = torchvision.models.EfficientNet_B5_Weights.DEFAULT
+    elif model_name == 'efficientnet-b6':
+        model_func = torchvision.models.efficientnet_b6
+        default_weights = torchvision.models.EfficientNet_B6_Weights.DEFAULT
+    elif model_name == 'efficientnet-b7':
+        model_func = torchvision.models.efficientnet_b7
+        default_weights = torchvision.models.EfficientNet_B7_Weights.DEFAULT
+    else:
+        raise ValueError('Invalid EfficientNet model name')
+
+    if pretrained and in_channels != 1:
+        model = model_func(weights=default_weights)
+        for param in model.parameters():
+            param.requires_grad = False
+        for name, module in model.named_modules():
+            if isinstance(module, nn.BatchNorm2d):
+                for param in module.parameters():
+                    param.requires_grad = True
+
+        model.classifier[-1] = nn.Linear(model.classifier[-1].in_features, num_classes)
+        for param in model.classifier[-1].parameters():
+            param.requires_grad = True
+    else:
+        model = model_func(num_classes=num_classes)
+        model.features[0] = torchvision.ops.Conv2dNormActivation(in_channels, model.features[0].out_channels, kernel_size=model.features[0].kernel_size, stride=model.features[0].stride, norm_layer=model.features[0].norm_layer, activation_layer=model.features[0].activation_layer)
+    return model
+
+
+
 class SimpleFeedForward(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super(SimpleFeedForward, self).__init__()
@@ -105,6 +153,8 @@ def get_model(model_name, num_classes, in_channels, pretrained):
     model_name = model_name.lower()
     if model_name.startswith('resnet'):
         return get_resnet_model(model_name, pretrained, num_classes, in_channels)
+    elif model_name.startswith('efficientnet'):
+        return get_efficientnet(model_name, pretrained, num_classes, in_channels)
     elif model_name == 'vgg19':
         return get_vgg19_bn(pretrained, num_classes, in_channels)
     elif model_name.startswith('simple_'):

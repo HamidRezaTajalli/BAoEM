@@ -30,9 +30,9 @@
 #SBATCH --ntasks=1                               # total number of tasks across all nodes
 #SBATCH --cpus-per-task=4                        # cpu-cores per task
 ##SBATCH --mem-per-cpu=16G                         # memory per cpu-core
-#SBATCH --mem=16G                                # memory per node
-#SBATCH --gres=gpu:1                             # assign 1 RTX A5000 GPU card
-#SBATCH --time=0-05:20:00
+#SBATCH --mem=32G                                # memory per node
+#SBATCH --gres=gpu:rtx_a6000:1                             # assign 1 RTX A5000 GPU card
+#SBATCH --time=0-47:20:00
 ##SBATCH --output=/home/%u/logs/slurm/%j.out       # stdout output file
 ##SBATCH --error=/home/%u/logs/slurm/%j.err        # stderr output file
 #SBATCH --mail-type=END,FAIL                     # send email when job ends or fails
@@ -45,7 +45,11 @@
 source /home/htajalli/.bashrc
 conda activate AISY
 
-# python backdoor_trial_copy.py
-python backdooring_while_train.py --place 1
+# python backdoor_trial.py
+# python backdooring_while_train.py --place 1
 # python bdtraining_single_model.py --model vgg19
-# python backdooring_while_train_res.py --place 2
+python backdooring_while_train_res.py --place 26
+# python temp_main.py
+
+# python ./voting_backdoor.py --ensemble_size ENSEMBLE_SIZE --strategy STRATEGY
+ 
