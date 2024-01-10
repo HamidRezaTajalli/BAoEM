@@ -202,4 +202,5 @@ fabric.properties
 # Additional ignored files
 *.pth
 *.out
-*.pickle```
+*.pickle
+*.sh```

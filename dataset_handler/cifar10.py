@@ -2,10 +2,10 @@
 import torch.utils.data
 from torchvision import datasets, transforms
 
-torch.manual_seed(53)
+# torch.manual_seed(53)
 import numpy as np
 
-np.random.seed(53)
+# np.random.seed(53)
 
 
 class CustomCIFAR10(datasets.CIFAR10):
@@ -78,3 +78,11 @@ def get_post_poison_transform_cifar10():
                 0.247, 0.243, 0.261]),
         ])
     return post_poison_transform
+
+def get_pre_poison_transform_cifar10():
+    pre_poison_transform = transforms.Compose([
+            transforms.ToTensor(),
+            # transforms.Resize(128),
+            
+        ])
+    return pre_poison_transform

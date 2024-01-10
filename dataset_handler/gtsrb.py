@@ -1,10 +1,10 @@
 import torch.utils.data
 from torchvision import datasets, transforms
 
-torch.manual_seed(53)
+# torch.manual_seed(53)
 import numpy as np
 
-np.random.seed(53)
+# np.random.seed(53)
 
 
 class CustomGTSRB(datasets.GTSRB):
@@ -90,16 +90,23 @@ def get_gtsrb_datasets(root_path='./data/GTSRB/', tr_vl_split=None, transform=No
 def get_general_transform_gtsrb():
     gnrl_transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Resize(128),
-            transforms.CenterCrop(128),
+            transforms.Resize((128, 128)),
+            # transforms.CenterCrop(128),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
     return gnrl_transform
 
 def get_post_poison_transform_gtsrb():
     post_poison_transform = transforms.Compose([
-            transforms.Resize(128),
-            transforms.CenterCrop(128),
+            transforms.Resize((128, 128)),
+            # transforms.CenterCrop(128),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
     return post_poison_transform
+
+def get_pre_poison_transform_gtsrb():
+    pre_poison_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize((128, 128)),
+        ])
+    return pre_poison_transform 

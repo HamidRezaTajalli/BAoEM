@@ -36,6 +36,20 @@ def main() -> None:
             write_to_file(sbatch_name, template)
             run_sbatch(sbatch_name)
 
+# def main() -> None:
+#     strategy = 'hard'
+#     for ensemble_size in ENSEMBLE_SIZE:
+#             with open(TEMPLATE_PATH, 'r') as file:
+#                 template = file.read()
+#             template = replace_template(template, strategy, ensemble_size)
+#             # sbatch_name = f"{strategy}_{ensemble_size}.sh"
+#             sbatch_name = f"bagging_{ensemble_size}.sh"
+#             # path = os.path.split(sbatch_name)[0]
+#             path = './bash_scripts/'
+#             create_directory(path)
+#             write_to_file(sbatch_name, template)
+#             run_sbatch(sbatch_name)
+
 if __name__ == "__main__":
     main()
 

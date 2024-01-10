@@ -100,13 +100,14 @@ def create_trigger(data: np.ndarray, color, trigger_size, pos='top-right') -> np
 #     return data, labels
 
 
-class BackdooredDataset(Dataset):
-    def __init__(self, backdoored_data, transform=None, target_transform=None):
+class BadnetDataset(Dataset):
+    def __init__(self, data, targets, transform=None, target_transform=None):
         """
         Args:
             backdoored_data (list): List of tuples with (image, label).
         """
-        self.data = backdoored_data
+        self.data = data
+        self.targets = targets
         self.transform = transform
         self.target_transform = target_transform
 
@@ -115,13 +116,13 @@ class BackdooredDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.transform is not None:
-            data = self.transform(self.data[idx][0])
+            data = self.transform(self.data[idx])
         else:
-            data = self.data[idx][0]
+            data = self.data[idx]
         if self.target_transform is not None:
-            label = self.target_transform(self.data[idx][1])
+            label = self.target_transform(self.targets[idx])
         else:
-            label = self.data[idx][1]
+            label = self.targets[idx]
         return data, label
     
     def set_transform(self, transform):
@@ -131,7 +132,8 @@ class BackdooredDataset(Dataset):
 
 
 def get_poisoned_dataset(clean_dataset, is_train: bool, trigger_size, trigger_color: str, trigger_pos: str, target_lbl: int, epsilon: float, source_label=None):
-    backdoored_ds = []
+    backdoored_data = []
+    bacdoored_labels = []
     samples_index = None
     if is_train:
         trigger_samples = int(epsilon * len(clean_dataset))
@@ -148,11 +150,13 @@ def get_poisoned_dataset(clean_dataset, is_train: bool, trigger_size, trigger_co
                     insert = (poisoned_image, target_lbl)
                 else:
                     insert = (image, label)
-                backdoored_ds.append(insert)
+                backdoored_data.append(insert[0])
+                bacdoored_labels.append(insert[1])
             else:
                 if label != target_lbl:
                     insert = (poisoned_image, target_lbl)
-                    backdoored_ds.append(insert)
+                    backdoored_data.append(insert[0])
+                    bacdoored_labels.append(insert[1])
         else:
             if is_train:
                 if idx in samples_index:
@@ -162,12 +166,14 @@ def get_poisoned_dataset(clean_dataset, is_train: bool, trigger_size, trigger_co
                         insert = (poisoned_image, label)
                 else:
                     insert = (image, label)
-                backdoored_ds.append(insert)
+                backdoored_data.append(insert[0])
+                bacdoored_labels.append(insert[1])
             else:
                 if label != target_lbl:
                     if label == source_label:
                         insert = (poisoned_image, target_lbl)
                     else:
                         insert = (poisoned_image, label)
-                    backdoored_ds.append(insert)
-    return BackdooredDataset(backdoored_ds)
+                    backdoored_data.append(insert[0])
+                    bacdoored_labels.append(insert[1])
+    return BadnetDataset(backdoored_data, bacdoored_labels)

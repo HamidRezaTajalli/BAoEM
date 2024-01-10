@@ -2,10 +2,10 @@
 import torch.utils.data
 from torchvision import datasets, transforms
 
-torch.manual_seed(53)
+# torch.manual_seed(53)
 import numpy as np
 
-np.random.seed(53)
+# np.random.seed(53)
 
 
 
@@ -72,3 +72,18 @@ def get_general_transform_mnist():
         ])
 
     return gnrl_transform
+
+def get_post_poison_transform_mnist():
+    post_poison_transform = transforms.Compose([
+            transforms.Resize(64),
+            transforms.Normalize((0.1307,), (0.3081,)),
+        ])
+
+    return post_poison_transform
+
+def get_pre_poison_transform_mnist():
+    pre_poison_transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
+
+    return pre_poison_transform

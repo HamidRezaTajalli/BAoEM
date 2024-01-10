@@ -6,44 +6,61 @@ from PIL import Image
 
 from training_utils import stack_outputs
 
-from dataset_handler.mnist import get_mnist_datasets, get_general_transform_mnist
-from dataset_handler.cifar10 import get_cifar10_datasets, get_general_transform_cifar10
-from dataset_handler.gtsrb import get_gtsrb_datasets, get_general_transform_gtsrb
+from dataset_handler.mnist import get_mnist_datasets, get_general_transform_mnist, get_post_poison_transform_mnist, get_pre_poison_transform_mnist  
+from dataset_handler.cifar10 import get_cifar10_datasets, get_general_transform_cifar10, get_post_poison_transform_cifar10, get_pre_poison_transform_cifar10
+from dataset_handler.gtsrb import get_gtsrb_datasets, get_general_transform_gtsrb, get_post_poison_transform_gtsrb, get_pre_poison_transform_gtsrb
 from attacks.badnet import get_poisoned_dataset
 
 
 class BtstrpDataset(torch.utils.data.Dataset):
     def __init__(self, data, labels):
         self.data = data
-        self.labels = labels
-        self.transform = transforms.Compose([transforms.ToTensor()])
+        self.targets = labels
+        # self.transform = transforms.Compose([transforms.ToTensor()])
+        self.transform, self.target_transform = None, None
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
         sample = self.data[idx]
-        sample = Image.fromarray(sample)
+        label = self.targets[idx]
+        # sample = Image.fromarray(sample)
         if self.transform:
             sample = self.transform(sample)
-        return sample, self.labels[idx]
+        if self.target_transform:
+            label = self.target_transform(label)
+        return sample, label
+    
+    def set_transform(self, transform):
+        self.transform = transform  
+    def set_target_transform(self, target_transform):
+        self.target_transform = target_transform
 
 
 def bootstrap_sample(dataset, resample_rate=None):
     n_samples = int(len(dataset) * resample_rate) if resample_rate is not None else None
 
-    if isinstance(dataset, torch.utils.data.Subset):
-        resampled_data, resampled_labels = resample(dataset.dataset.data[dataset.indices],
-                                                    dataset.dataset.targets[dataset.indices],
-                                                    replace=True,
-                                                    n_samples=n_samples)
-    elif isinstance(dataset, torch.utils.data.Dataset):
-        resampled_data, resampled_labels = resample(dataset.data,
-                                                    dataset.targets,
-                                                    replace=True,
-                                                    n_samples=n_samples)
-    else:
-        raise TypeError("dataset must be a torch.utils.data.Dataset object or torch.utils.data.Subset object")
+    data = [dataset[i][0] for i in range(len(dataset))]
+    labels = [dataset[i][1] for i in range(len(dataset))]
+
+    # if isinstance(dataset, torch.utils.data.Subset):
+    #     resampled_data, resampled_labels = resample(dataset.dataset.data[dataset.indices],
+    #                                                 dataset.dataset.targets[dataset.indices],
+    #                                                 replace=True,
+    #                                                 n_samples=n_samples)
+    # elif isinstance(dataset, torch.utils.data.Dataset):
+    #     resampled_data, resampled_labels = resample(dataset.data,
+    #                                                 dataset.targets,
+    #                                                 replace=True,
+    #                                                 n_samples=n_samples)
+    # else:
+    #     raise TypeError("dataset must be a torch.utils.data.Dataset object or torch.utils.data.Subset object")
+
+    resampled_data, resampled_labels = resample(data,
+                                                labels,
+                                                replace=True,
+                                                n_samples=n_samples)
 
     return BtstrpDataset(resampled_data, resampled_labels)
 
@@ -100,13 +117,37 @@ def get_datasets(dataname: str, root_path=None, tr_vl_split=None, transform=None
     return func(root_path, tr_vl_split, transform=transform)
 
 
-def poison_dataset(dataname: str, dataset, is_train, attack_name, post_transform=None):
-    poison_dataset = None
+def poison_dataset(args, dataname: str, dataset, is_train, attack_name, post_transform=None):
+    poisoned_dataset = None
     if attack_name == 'badnet':
-        poisoned_dataset = get_poisoned_dataset(is_train=is_train, trigger_size=2, trigger_color='green', trigger_pos='top-right', target_lbl=0, epsilon=0.02, clean_dataset=dataset,
+        poisoned_dataset = get_poisoned_dataset(is_train=is_train, trigger_size=args.trigger_size, trigger_color='green', trigger_pos='top-right', target_lbl=0, epsilon=0.02, clean_dataset=dataset,
                          source_label=None)
         if post_transform is not None:
             poisoned_dataset.set_transform(post_transform)
 
     return poisoned_dataset
 
+
+def get_general_transform(dataset_name):
+    Switcher = {
+        'mnist': get_general_transform_mnist,
+        'cifar10': get_general_transform_cifar10,
+        'gtsrb': get_general_transform_gtsrb
+    }
+    return Switcher.get(dataset_name, "Invalid dataset name")()
+
+def get_post_poison_transform(dataset_name):
+    Switcher = {
+        'mnist': get_post_poison_transform_mnist,
+        'cifar10': get_post_poison_transform_cifar10,
+        'gtsrb': get_post_poison_transform_gtsrb
+    }
+    return Switcher.get(dataset_name, "Invalid dataset name")()
+
+def get_pre_poison_transform(dataset_name):
+    Switcher = {
+        'mnist': get_pre_poison_transform_mnist,
+        'cifar10': get_pre_poison_transform_cifar10,
+        'gtsrb': get_pre_poison_transform_gtsrb
+    }
+    return Switcher.get(dataset_name, "Invalid dataset name")()

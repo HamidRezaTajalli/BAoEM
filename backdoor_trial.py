@@ -7,12 +7,9 @@ from torch.utils.data import DataLoader, SubsetRandomSampler
 from sklearn.model_selection import KFold
 from torchvision import transforms
 
-from dataset_handler.data_utils import create_stacked_dataset, get_datasets, poison_dataset
+from dataset_handler.data_utils import get_datasets, poison_dataset, get_general_transform, get_post_poison_transform, get_pre_poison_transform, create_stacked_dataset
 from training_utils import train_stacked_models, train_one_epoch, stack_outputs
 from models import get_num_classes, get_input_channels, get_model
-from dataset_handler.cifar10 import get_post_poison_transform_cifar10, get_cifar10_datasets, get_general_transform_cifar10 
-# from BASL_Files.cifar10 import get_dataset
-# from BASL_Files.trigger import create_trigger
 
 import torch.optim as optim
 
@@ -20,8 +17,8 @@ import torch.optim as optim
 def backdoor() -> None:
     
     # Get the number of classes and input channels from the dataset
-    dataname = 'cifar10'
-    batch_size = 128
+    dataname = 'gtsrb'
+    batch_size = 64
     n_epochs = 20
     epsilon = 0.02
     trigger_scale = 0.08
@@ -172,13 +169,13 @@ def backdoor() -> None:
     # then train the base models on the training set and create the meta-dataset using the validation set.
     if k_fold is None:
         # train_dataset, validation_dataset, test_dataset, classes_names = get_datasets(dataname=dataname, tr_vl_split=tr_vl_split)
-        train_dataset, validation_dataset, test_dataset, classes_names = get_datasets(dataname=dataname, root_path=None, tr_vl_split=tr_vl_split, transform=transforms.ToTensor())
-        poisoned_trainset = poison_dataset(dataname=dataname, dataset=train_dataset, is_train=True, attack_name='badnet', post_transform=get_post_poison_transform_cifar10())
-        poisoned_testset = poison_dataset(dataname=dataname, dataset=test_dataset, is_train=False, attack_name='badnet', post_transform=get_post_poison_transform_cifar10())
-        poisoned_validationset = poison_dataset(dataname=dataname, dataset=validation_dataset, is_train=True, attack_name='badnet', post_transform=get_post_poison_transform_cifar10())
-        train_dataset.dataset.set_transform(get_general_transform_cifar10())
-        test_dataset.set_transform(get_general_transform_cifar10())
-        validation_dataset.dataset.set_transform(get_general_transform_cifar10())
+        train_dataset, validation_dataset, test_dataset, classes_names = get_datasets(dataname=dataname, root_path=None, tr_vl_split=tr_vl_split, transform=get_pre_poison_transform(dataname))
+        poisoned_trainset = poison_dataset(dataname=dataname, dataset=train_dataset, is_train=True, attack_name='badnet', post_transform=get_post_poison_transform(dataname))
+        poisoned_testset = poison_dataset(dataname=dataname, dataset=test_dataset, is_train=False, attack_name='badnet', post_transform=get_post_poison_transform(dataname))
+        poisoned_validationset = poison_dataset(dataname=dataname, dataset=validation_dataset, is_train=True, attack_name='badnet', post_transform=get_post_poison_transform(dataname))
+        train_dataset.dataset.set_transform(get_general_transform(dataname))
+        test_dataset.set_transform(get_general_transform(dataname))
+        validation_dataset.dataset.set_transform(get_general_transform(dataname))
 
         # train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
         poisoned_train_dataloader = DataLoader(poisoned_trainset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -191,11 +188,11 @@ def backdoor() -> None:
     # TODO: this section is not modified for badnet. I should modify the datasets correctly.
     else:        
         # train_dataset, test_dataset, classes_names = get_datasets(dataname=dataname, tr_vl_split=None)
-        train_dataset, test_dataset, classes_names = get_datasets(dataname=dataname, root_path=None, tr_vl_split=None, transform=transforms.ToTensor())
+        train_dataset, test_dataset, classes_names = get_datasets(dataname=dataname, root_path=None, tr_vl_split=None, transform=get_pre_poison_transform(dataname))
         # poisoned_trainset = poison_dataset(dataname=dataname, dataset=trainset, is_train=True, attack_name='badnet', post_transform=get_post_poison_transform_cifar10())
-        poisoned_testset = poison_dataset(dataname=dataname, dataset=test_dataset, is_train=False, attack_name='badnet', post_transform=get_post_poison_transform_cifar10())
-        train_dataset.set_transform(get_general_transform_cifar10())
-        test_dataset.set_transform(get_general_transform_cifar10())
+        poisoned_testset = poison_dataset(dataname=dataname, dataset=test_dataset, is_train=False, attack_name='badnet', post_transform=get_post_poison_transform(dataname))
+        train_dataset.set_transform(get_general_transform(dataname))
+        test_dataset.set_transform(get_general_transform(dataname))
         meta_dataset_list = []
         kf = KFold(n_splits=k_fold, shuffle=False)
         for train_idx, val_idx in kf.split(train_dataset.data):

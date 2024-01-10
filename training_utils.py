@@ -114,8 +114,7 @@ def train_stacked_models(dataloader, models, n_epochs, optimizers, loss_function
 
 
 
-def vote(models_list, device, test_loader, voting='hard'):
-    num_classes = 10
+def vote(models_list, device, test_loader, voting='hard', num_classes=10):
     for model in models_list:
         model.eval()
         
@@ -141,12 +140,10 @@ def vote(models_list, device, test_loader, voting='hard'):
                 outputs = torch.zeros(len(target),
                                       len(models_list), num_classes)  # A matrix to store each model's prediction for each input
 
-                print(f"outputs.shape: {outputs.shape}")
                 # Get each model's prediction for each input batch
                 for model_idx, model in enumerate(models_list):
                     model.to(device)
                     output = torch.softmax(model(data), dim=1)
-                    print(f"output.shape: {output.shape}")
                     outputs[:, model_idx, :] = output
 
                 # Use a majority vote system to get final predictions

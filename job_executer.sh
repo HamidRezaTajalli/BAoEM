@@ -31,7 +31,7 @@
 #SBATCH --cpus-per-task=4                        # cpu-cores per task
 ##SBATCH --mem-per-cpu=16G                         # memory per cpu-core
 #SBATCH --mem=32G                                # memory per node
-#SBATCH --gres=gpu:rtx_a6000:1                             # assign 1 RTX A5000 GPU card
+#SBATCH --gres=gpu:1                             # assign 1 RTX A5000 GPU card
 #SBATCH --time=0-47:20:00
 ##SBATCH --output=/home/%u/logs/slurm/%j.out       # stdout output file
 ##SBATCH --error=/home/%u/logs/slurm/%j.err        # stderr output file
@@ -48,8 +48,11 @@ conda activate AISY
 # python backdoor_trial.py
 # python backdooring_while_train.py --place 1
 # python bdtraining_single_model.py --model vgg19
-python backdooring_while_train_res.py --place 26
+# python backdooring_while_train_res.py --place 26
 # python temp_main.py
 
-# python ./voting_backdoor.py --ensemble_size ENSEMBLE_SIZE --strategy STRATEGY
- 
+# python ./voting_backdoor.py --ensemble_size 50 --strategy soft --saving_path './results/' --experim_num 0 --dataname cifar10
+# python ./bagging_backdoor.py --ensemble_size ENSEMBLE_SIZE --saving_path './results/' --experim_num 0 --dataname gtsrb
+# python ./stacking_backdoor.py --ensemble_size 25 --saving_path './results/' --experim_num 0 --dataname cifar10
+
+

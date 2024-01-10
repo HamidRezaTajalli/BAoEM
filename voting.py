@@ -63,7 +63,7 @@ def voting_ensemble(dataname: str, batch_size: int, n_epochs: int, models_name_l
             print(print_string)
 
     # Test the ensemble on the test data
-    test_acc = vote(model_list, device, test_dataloader, voting=strategy)
+    test_acc = vote(model_list, device, test_dataloader, voting=strategy, num_classes=num_classes)
     print("------------Ensemble Test Accuracy---------")
     print_string = f"test accuracy: {test_acc:>6}"
     print(print_string)
