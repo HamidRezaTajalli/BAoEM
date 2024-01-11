@@ -17,16 +17,21 @@ from pathlib import Path
 def voting_ensemble(args, dataname: str, batch_size: int, n_epochs: int, models_name_list: List[str], 
                    is_pretrained_list: List[bool], optim_list: List[str], device: torch.device, strategy='hard', experim_num=0, saving_path: Path=Path()) -> None:
     """
-    Creates an ensemble of models and trains them using voting. All models are trained on the same dataset.
-    The ensemble is then tested on the test dataset.
+        This function creates an ensemble of models and trains them using a voting strategy. 
+        All models are trained on the same dataset. The ensemble is then tested on both the clean and poisoned test datasets.
 
-    Args:
-        dataname (str): Name of the dataset.
-        n_epochs (int): Number of epochs for training.
-        models_name_list (List[str]): List of names of the models to be used in the ensemble.
-        is_pretrained_list (List[bool]): List indicating whether the corresponding model is pretrained or not.
-        optim_list (List[str]): List of optimizers to be used for the corresponding models.
-        device (torch.device): Device to be used for training (CPU or GPU).
+        Args:
+            args: Command line arguments.
+            dataname (str): The name of the dataset.
+            batch_size (int): The batch size for training.
+            n_epochs (int): The number of epochs for training.
+            models_name_list (List[str]): A list of the names of the models to be used in the ensemble.
+            is_pretrained_list (List[bool]): A list indicating whether each corresponding model is pretrained or not.
+            optim_list (List[str]): A list of optimizers to be used for the corresponding models.
+            device (torch.device): The device to be used for training (CPU or GPU).
+            strategy (str, optional): The voting strategy to be used. Defaults to 'hard'.
+            experim_num (int, optional): The experiment number. Defaults to 0.
+            saving_path (Path, optional): The path where the results will be saved. Defaults to the current directory.
     """
     
     train_batch_size, validation_batch_size = batch_size, batch_size

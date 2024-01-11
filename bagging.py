@@ -12,16 +12,18 @@ import torch.optim as optim
 def bagging_ensemble(dataname: str, batch_size: int, n_epochs: int, models_name_list: List[str], 
                    is_pretrained_list: List[bool], optim_list: List[str], device: torch.device, tr_vl_split=0.8) -> None:
     """
-    Creates an ensemble of models and trains them using bagging. Each model is trained on a bootstrap sample of the original dataset.
-    The ensemble is then tested on the test dataset.
+    This function creates an ensemble of models and trains them using a bagging strategy. 
+    Each model is trained on a bootstrap sample of the original dataset. The ensemble is then tested on the test dataset.
 
     Args:
         dataname (str): Name of the dataset.
+        batch_size (int): The batch size for training.
         n_epochs (int): Number of epochs for training.
         models_name_list (List[str]): List of names of the models to be used in the ensemble.
         is_pretrained_list (List[bool]): List indicating whether the corresponding model is pretrained or not.
         optim_list (List[str]): List of optimizers to be used for the corresponding models.
         device (torch.device): Device to be used for training (CPU or GPU).
+        tr_vl_split (float, optional): The ratio of training to validation data. Defaults to 0.8.
     """
     
     train_batch_size, validation_batch_size = batch_size, batch_size
