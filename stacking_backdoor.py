@@ -20,6 +20,27 @@ import torch.optim as optim
 
 def stacking_ensemble(args, dataname: str, batch_size: int, n_epochs: int, models_name_list: List[str], 
                    is_pretrained_list: List[bool], optim_list: List[str], ensemble_size: int, device: torch.device, mt_mdl_name = 'advanced_4000', k_fold=None, experim_num=0, saving_path: Path=Path()) -> None:
+    
+    """
+    This function creates an ensemble of models and trains them using stacking. It then creates a meta-dataset with the output of the base models and trains a meta-model on it.
+    Finally, it tests the whole ensemble on the test dataset.
+
+    Args:
+        args: Command line arguments.
+        dataname (str): Name of the dataset.
+        batch_size (int): Size of the batch for training, validation and testing.
+        n_epochs (int): Number of epochs for training.
+        models_name_list (List[str]): List of names of the models to be used in the ensemble.
+        is_pretrained_list (List[bool]): List indicating whether the corresponding model is pretrained or not.
+        optim_list (List[str]): List of optimizers to be used for the corresponding models.
+        ensemble_size (int): Number of models in the ensemble.
+        device (torch.device): Device to be used for training (CPU or GPU).
+        mt_mdl_name (str, optional): Name of the meta model. Defaults to 'advanced_4000'.
+        k_fold (int, optional): Number of folds for cross-validation. If None, the dataset is split into training and validation sets.
+        experim_num (int, optional): Experiment number. Defaults to 0.
+        saving_path (Path, optional): Path to save the results. Defaults to current directory.
+    """
+    
     # Get the number of classes and input channels from the dataset
     num_classes = get_num_classes(dataname)
     n_in_channels = get_input_channels(dataname)

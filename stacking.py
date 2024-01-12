@@ -15,8 +15,8 @@ import torch.optim as optim
 def stack_ensemble(k_fold: int, dataname: str, batch_size: int, n_epochs: int, models_name_list: List[str], 
                    is_pretrained_list: List[bool], optim_list: List[str], device: torch.device, mt_mdl_name: str='simple_2000', tr_vl_split=0.8) -> None:
     """
-    Creates an ensemble of models and trains them using stacking. then creates a meta-dataset with output of the base models and trains a meta-model on it.
-    then test the whole ensemble on the test dataset.
+    This function creates an ensemble of models and trains them using stacking. It then creates a meta-dataset with the output of the base models and trains a meta-model on it.
+    Finally, it tests the whole ensemble on the test dataset.
 
     Args:
         k_fold (int): Number of folds for cross-validation. If None, the dataset is split into training and validation sets.

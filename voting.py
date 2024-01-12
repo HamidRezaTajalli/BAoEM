@@ -13,17 +13,23 @@ import torch.optim as optim
 
 def voting_ensemble(dataname: str, batch_size: int, n_epochs: int, models_name_list: List[str], 
                    is_pretrained_list: List[bool], optim_list: List[str], device: torch.device, tr_vl_split=0.8, strategy='hard') -> None:
-    """
-    Creates an ensemble of models and trains them using voting. All models are trained on the same dataset.
-    The ensemble is then tested on the test dataset.
 
-    Args:
-        dataname (str): Name of the dataset.
-        n_epochs (int): Number of epochs for training.
-        models_name_list (List[str]): List of names of the models to be used in the ensemble.
-        is_pretrained_list (List[bool]): List indicating whether the corresponding model is pretrained or not.
-        optim_list (List[str]): List of optimizers to be used for the corresponding models.
-        device (torch.device): Device to be used for training (CPU or GPU).
+
+    """
+        This function creates an ensemble of models and trains them using a voting strategy. 
+        All models are trained on the same dataset and the ensemble is evaluated on the test dataset.
+
+        Args:
+            dataname (str): The name of the dataset.
+            batch_size (int): The batch size for training.
+            n_epochs (int): The number of epochs for training.
+            models_name_list (List[str]): A list of the names of the models to be used in the ensemble.
+            is_pretrained_list (List[bool]): A list indicating whether each corresponding model is pretrained or not.
+            optim_list (List[str]): A list of optimizers to be used for the corresponding models.
+            device (torch.device): The device to be used for training (CPU or GPU).
+            tr_vl_split (float, optional): The ratio of training to validation data. Defaults to 0.8.
+            strategy (str, optional): The voting strategy to be used. Defaults to 'hard'.
+    
     """
     
     train_batch_size, validation_batch_size = batch_size, batch_size
@@ -68,4 +74,7 @@ def voting_ensemble(dataname: str, batch_size: int, n_epochs: int, models_name_l
     print_string = f"test accuracy: {test_acc:>6}"
     print(print_string)
     print("-------------------------------------------")
+    
+
+
     
