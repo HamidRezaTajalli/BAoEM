@@ -107,7 +107,6 @@ def main():
     poisoned_test_acc = vote(model_list, device, poisoned_test_dataloader, voting=args.strategy, num_classes=num_classes)
     print(f"poisoned test accuracy before re-training: {poisoned_test_acc:>6}")
 
-
     # Get the last convolutional layer of the model, as explained in the paper
     print("======== pruning... ========")
     last_conv_layer_list = []
