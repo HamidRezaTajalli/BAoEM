@@ -12,6 +12,10 @@ from models import get_num_classes, get_input_channels, get_model
 import torch.optim as optim
 from pathlib import Path
 
+import warnings
+warnings.filterwarnings("ignore")
+
+torch.hub.set_dir('/tudelft.net/staff-umbrella/dlsca/Lichao/Backdoor_ensemble/Pretrained_models')
 # The bagging is done by bootstrap sampling of same models on a dataset. but voting is done by different models trained on same datast!
 
 def voting_ensemble(args, dataname: str, batch_size: int, n_epochs: int, models_name_list: List[str], 
@@ -47,66 +51,77 @@ def voting_ensemble(args, dataname: str, batch_size: int, n_epochs: int, models_
 
     criterion = CrossEntropyLoss()
 
-    train_dataset, test_dataset, classes_names = get_datasets(dataname=dataname, root_path=None, tr_vl_split=None, transform=get_pre_poison_transform(dataname))
+    train_dataset, test_dataset, classes_names = get_datasets(dataname=dataname, root_path='/tudelft.net/staff-umbrella/dlsca/Lichao/Backdoor_ensemble/Data/', tr_vl_split=None, transform=get_pre_poison_transform(dataname))
     poisoned_trainset = poison_dataset(args, dataname=dataname, dataset=train_dataset, is_train=True, attack_name='badnet', post_transform=get_post_poison_transform(dataname))
     poisoned_testset = poison_dataset(args, dataname=dataname, dataset=test_dataset, is_train=False, attack_name='badnet', post_transform=get_post_poison_transform(dataname))
     train_dataset.set_transform(get_general_transform(dataname))
     test_dataset.set_transform(get_general_transform(dataname))
 
-    # train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True, num_workers=2)
+    train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True, num_workers=2)
     poisoned_train_dataloader = DataLoader(poisoned_trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     test_dataloader = DataLoader(test_dataset, batch_size=validation_batch_size, shuffle=False, num_workers=2)
     poisoned_test_dataloader = DataLoader(poisoned_testset, batch_size=validation_batch_size, shuffle=False, num_workers=2)
 
     # Define Voting Strategy
+    
     for i, model in enumerate(model_list):
         print(f"Model {i + 1}\n-------------------------------")
+        if args.train_model:
+            # Train the model on the same data
+            for epoch in range(n_epochs):
+                print(f"Epoch {epoch + 1}\n-------------------------------")
+                if args.attack_index == 999:
+                    print('Poisioned dataset training')
+                    train_lss = train_one_epoch(model, poisoned_train_dataloader, optimizers[i], criterion, device)
+                else:
+                    print('Clean dataset training')
+                    train_lss = train_one_epoch(model, train_dataloader, optimizers[i], criterion, device)
+                print_string = f"train loss: {train_lss:>6}"
+                print(print_string)
 
-        # Train the model on the same data
-        for epoch in range(n_epochs):
-            print(f"Epoch {epoch + 1}\n-------------------------------")
-            train_lss = train_one_epoch(model, poisoned_train_dataloader, optimizers[i], criterion, device)
-            print_string = f"train loss: {train_lss:>6}"
-            print(print_string)
+                # # Test the model on the validation data
+                # val_lss, val_acc = evaluate_one_epoch(model, validation_dataloader, criterion, device)
+                # print_string = f"validation loss: {val_lss:>6}"
+                # print(print_string)
+                # print_string = f"validation accuracy: {val_acc:>6}"
+                # print(print_string)
 
-            # # Test the model on the validation data
-            # val_lss, val_acc = evaluate_one_epoch(model, validation_dataloader, criterion, device)
-            # print_string = f"validation loss: {val_lss:>6}"
-            # print(print_string)
-            # print_string = f"validation accuracy: {val_acc:>6}"
-            # print(print_string)
+                torch.save(model.state_dict(), '/tudelft.net/staff-umbrella/dlsca/Lichao/Backdoor_ensemble/Models/Voting_model_{}.pt'.format(args.attack_index))
 
-    # Test the ensemble on the test data
-    test_acc = vote(model_list, 'cpu', test_dataloader, voting=strategy, num_classes=num_classes)
-    print("------------Ensemble Test Accuracy---------")
-    print_string = f"test accuracy: {test_acc:>6}"
-    print(print_string)
-    print("-------------------------------------------")
+        else:
+            model.load_state_dict(torch.load('/tudelft.net/staff-umbrella/dlsca/Lichao/Backdoor_ensemble/Models/Voting_model_{}.pt'.format(i)))
+
     
-    # Test the ensemble on the poisoned test data
-    bd_test_acc = vote(model_list, 'cpu', poisoned_test_dataloader, voting=strategy, num_classes=num_classes)
-    print("------------Ensemble Poisoned Test Accuracy---------")
-    print_string = f"backdoor test accuracy: {bd_test_acc:>6}"
-    print(print_string)
-    print("-------------------------------------------")
+    if args.emsemble_prediction:
+        # Test the ensemble on the test data
+        test_acc = vote(model_list, 'cpu', test_dataloader, voting=strategy, num_classes=num_classes)
+        print("------------Ensemble Test Accuracy---------")
+        print_string = f"test accuracy: {test_acc:>6}"
+        print(print_string)
+        print("-------------------------------------------")
+        
+        # Test the ensemble on the poisoned test data
+        bd_test_acc = vote(model_list, 'cpu', poisoned_test_dataloader, voting=strategy, num_classes=num_classes)
+        print("------------Ensemble Poisoned Test Accuracy---------")
+        print_string = f"backdoor test accuracy: {bd_test_acc:>6}"
+        print(print_string)
+        print("-------------------------------------------")
 
-    # Save the results and plots and other bullshits
-    plots_path = saving_path.joinpath('plots')
-    if not plots_path.exists():
-        plots_path.mkdir()
-    csv_path = saving_path.joinpath('results.csv')
-    if not csv_path.exists():
-        csv_path.touch()
-        with open(file=csv_path, mode='w') as file:
+        # Save the results and plots and other bullshits
+        plots_path = saving_path.joinpath('plots')
+        if not plots_path.exists():
+            plots_path.mkdir()
+        csv_path = saving_path.joinpath('results.csv')
+        if not csv_path.exists():
+            csv_path.touch()
+            with open(file=csv_path, mode='w') as file:
+                csv_writer = csv.writer(file)
+                csv_writer.writerow(['EXPERIMENT_NUMBER', 'ENSEMBLE_TECHNIQUE', 'NUMBER_OF_MODELS', 'DATASET', 'CLEAN_ACCURACY', 'ASR'])
+        
+        with open(file=csv_path, mode='a') as file:
             csv_writer = csv.writer(file)
-            csv_writer.writerow(['EXPERIMENT_NUMBER', 'ENSEMBLE_TECHNIQUE', 'NUMBER_OF_MODELS', 'DATASET', 'CLEAN_ACCURACY', 'ASR'])
-    
-    with open(file=csv_path, mode='a') as file:
-        csv_writer = csv.writer(file)
-        csv_writer.writerow([experim_num, f'{strategy}_voting', len(model_list), dataname, test_acc, bd_test_acc])
+            csv_writer.writerow([experim_num, f'{strategy}_voting', len(model_list), dataname, test_acc, bd_test_acc])
                             
-
-
 
 if __name__ == "__main__":
     import argparse
@@ -117,18 +132,33 @@ if __name__ == "__main__":
     parser.add_argument('--n_epochs', type=int, default=20)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--optim', type=str, default='adam')
-    parser.add_argument('--device', type=str)
-    parser.add_argument('--strategy', type=str, default='hard')
-    parser.add_argument('--ensemble_size', type=int, default=3)
+    parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--strategy', type=str, default='soft')
+    parser.add_argument('--ensemble_size', type=int, default=1)
     parser.add_argument('--pretrained', type=bool, default=True)
     parser.add_argument('--saving_path', type=str, default='.')
-    parser.add_argument('--experim_num', type=int, default=0)
-
+    parser.add_argument('--experim_num', type=int, default=0)  
     
+    parser.add_argument('--train_model', action=argparse.BooleanOptionalAction)
+    parser.add_argument('--emsemble_prediction', action=argparse.BooleanOptionalAction)
+    parser.add_argument('--attack_index', type=int, required=True)
+
     args = parser.parse_args()
+    
+    print(args.train_model)
+    print(args.emsemble_prediction)
+    print(args.ensemble_size)
 
     base_model_list = ['resnet50', 'vgg19', 'efficientnet-b3']
-    models_name_list = base_model_list * (args.ensemble_size // len(base_model_list))
+    if args.ensemble_size < 3:
+        models_name_list = base_model_list[:args.ensemble_size]
+    else:
+        models_name_list = base_model_list * (args.ensemble_size // len(base_model_list))
+    
+    # We replace the first model with backdoored pretrained model
+    models_name_list[0] = 'resnet50_bd'
+    print(models_name_list)
+    
     if args.ensemble_size % len(base_model_list) != 0:
         models_name_list += base_model_list[:args.ensemble_size % len(base_model_list)]
     optim_list = []    
@@ -150,9 +180,10 @@ if __name__ == "__main__":
 
     saving_path = Path(args.saving_path)
 
-    args.trigger_size = 2
-
-    
+    if args.dataname == 'gtsrb':
+        args.trigger_size = 8
+    else:
+        args.trigger_size = 2
     
     voting_ensemble(args, dataname=args.dataname, batch_size=args.batch_size, n_epochs=args.n_epochs, models_name_list=models_name_list, 
                    is_pretrained_list=is_pretrained_list, optim_list=optim_list, device=device, strategy=args.strategy, experim_num=args.experim_num, saving_path=saving_path)
