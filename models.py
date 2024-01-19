@@ -30,6 +30,9 @@ def get_resnet_model(model_name, pretrained, num_classes, in_channels):
     elif model_name == 'resnet50':
         model_func = torchvision.models.resnet50
         default_weights = torchvision.models.ResNet50_Weights.DEFAULT
+    elif model_name == 'resnet50_bd':
+        model_func = torchvision.models.resnet50
+        default_weights = torchvision.models.ResNet50_Weights.DEFAULT        
     else:
         raise ValueError('Invalid ResNet model name')
 
@@ -45,6 +48,9 @@ def get_resnet_model(model_name, pretrained, num_classes, in_channels):
     else:
         model = model_func(num_classes=num_classes)
         model.conv1 = torch.nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=7, stride=2, padding=3, bias=False)
+    
+    if model_name == 'resnet50_bd':
+        model.load_state_dict(torch.load('/tudelft.net/staff-umbrella/dlsca/Lichao/Backdoor_ensemble/Pretrained_models/resnet50_bd.pt'))
     return model
 
 def get_vgg19_bn(pretrained, num_classes, in_channels):
@@ -163,6 +169,8 @@ def get_model(model_name, num_classes, in_channels, pretrained):
     elif model_name.startswith('advanced_'):
         hidden_layer_num = int(model_name.split('_')[1])
         return AdvancedFeedForward(in_channels, hidden_layer_num, num_classes)
+    elif model_name == 'backdoor':
+        return get_backdoor_model(pretrained, num_classes, in_channels)
     
     else:
         raise ValueError('Invalid model name')
