@@ -27,6 +27,55 @@ def train_one_epoch(model, dataloader, optimizer, loss_function, device):
     avg_loss = running_loss / total_samples
     return avg_loss
 
+def train_one_epoch_boosting(model, dataloader, optimizer, loss_function, device, prediction, model_index):
+    model = model.to(device)
+    model.train()
+    running_loss = 0.0
+    total_samples = 0
+    # (n_model,_batch_id, 256, 10)
+    for batch_idx, (data, target) in enumerate(dataloader):
+        data, target = data.to(device), target.to(device)
+        optimizer.zero_grad()
+        # first make a prediction with current model
+        output = model(data)
+        if len(prediction) != 0:
+            #print('add!')
+            torch.add(output, prediction[batch_idx])
+        loss = loss_function(torch.div(output, model_index+1), target)
+        # loss = loss_function(output, target)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item() * data.size(0)
+        total_samples += data.size(0)
+        data, target = data.to('cpu'), target.to('cpu')
+        torch.cuda.empty_cache()  # Free up memory
+    gc.collect()
+    model.to('cpu')
+
+    avg_loss = running_loss / total_samples
+    return avg_loss
+
+def get_pred_output(model, dataloader, prediction, device):
+    model = model.to(device)
+    model.eval()
+    with torch.no_grad():
+        if len(prediction) == 0:
+            for batch_idx, (data, _) in enumerate(dataloader):
+                data = data.to(device)
+                output = model(data)
+                prediction.append(output)
+                output = output.to('cpu')
+                data = data.to('cpu')
+        else:
+            for batch_idx, (data, _) in enumerate(dataloader):
+                data = data.to(device)
+                output = model(data)
+                prediction[batch_idx] += output
+                output = output.to('cpu')
+                data = data.to('cpu')
+    model.to('cpu')
+    return prediction
 
 def evaluate_one_epoch(model, dataloader, loss_function, device):
     model = model.to(device)
@@ -72,12 +121,12 @@ def stack_outputs(models, batch, device='cpu'):
     for model in models:
         model = model.to(device)
         batch = batch.to(device)
-        if next(model.parameters()).is_cuda:
-            print("Model is on GPU")
-            exit()
-        if batch.is_cuda:
-            print("Data is on GPU")
-            exit()
+        #if next(model.parameters()).is_cuda:
+        #    print("Model is on GPU")
+        #    exit()
+        #if batch.is_cuda:
+        #    print("Data is on GPU")
+        #    exit()
 
         model.eval()
         with torch.no_grad():
@@ -158,7 +207,3 @@ def vote(models_list, device, test_loader, voting='hard', num_classes=10):
 
     accuracy = total_corrects / total_samples
     return accuracy
-
-
-
-
