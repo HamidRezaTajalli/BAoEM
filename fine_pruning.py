@@ -8,21 +8,17 @@ from training_utils import train_one_epoch, evaluate_one_epoch, vote
 from models import get_num_classes, get_input_channels, get_model
 from voting import voting_ensemble
 from bagging import bagging_ensemble
+from stacking import stack_ensemble
+
 import torch.optim as optim
+import torch.nn as nn
+
+from torchvision.models import resnet50, vgg19, efficientnet_b3
 
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader
 from torchvision import transforms
  
-class MaskedLayer(nn.Module):
-    def __init__(self, base, mask):
-        super(MaskedLayer, self).__init__()
-        self.base = base
-        self.mask = mask
-
-    def forward(self, input):
-        return self.base(input) * self.mask
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataname', type=str, default='cifar10')
@@ -43,6 +39,16 @@ parser.add_argument('--pruning_rate', type=float, default=0.5)
 
 args = parser.parse_args()
 
+class MaskedLayer(nn.Module):
+    def __init__(self, base, mask):
+        super(MaskedLayer, self).__init__()
+        self.base = base
+        self.mask = mask
+
+    def forward(self, input):
+        return self.base(input) * self.mask
+
+
 def main():
     """
         The fine-pruning defense deactivates a fraction of the neurons in the
@@ -52,6 +58,8 @@ def main():
         through the network and save the activations of the neurons. Then we
         deactivate the neurons with the highest activations.
     """
+
+    print("======== Loading the models ========")
     
     base_model_list = ['resnet50', 'vgg19', 'efficientnet-b3']
     models_name_list = base_model_list * (args.ensemble_size // len(base_model_list))
@@ -83,6 +91,21 @@ def main():
     # Create a list of models
     model_list = [get_model(model_name, num_classes, n_in_channels, pretrained) for model_name, pretrained in zip(models_name_list, is_pretrained_list)]
 
+    if args.model_path is not None:
+        if args.type == 'stacking':
+            path = f'{args.model_path}_stacking_meta_model_0.pt'
+        else:
+            for i in range(args.ensemble_size):
+                # the file name increases by the number of the model
+                # example: models/Bagging_model_0.pt
+                # example: models/Boosting_model_0.pt
+                # example: models/Voting_model_0.pt
+                path = f'{args.model_path}/{args.type.capitalize()}_model_{i}.pt'
+                w = torch.load(path)
+                model_list[i].load_state_dict(w)
+
+
+
     # Define the optimizers
     optim_dict = {'sgd': optim.SGD, 'adam': optim.Adam}
     optimizers = [optim_dict[optim_name](model.parameters(), lr=args.lr) for model, optim_name in zip(model_list, optim_list)]
@@ -101,26 +124,27 @@ def main():
     poisoned_test_dataloader = DataLoader(poisoned_testset, batch_size=args.batch_size, shuffle=False, num_workers=2)
 
     # Evaluate the model on clean and poisoned test data
-    print("======== Evaluating the models on clean and poisoned test data ========")
-    test_acc = vote(model_list, device, test_dataloader, voting=args.strategy, num_classes=num_classes)
-    print(f"test accuracy before re-training: {test_acc:>6}")
-    poisoned_test_acc = vote(model_list, device, poisoned_test_dataloader, voting=args.strategy, num_classes=num_classes)
-    print(f"poisoned test accuracy before re-training: {poisoned_test_acc:>6}")
+    # print("======== Evaluating the models on clean and poisoned test data ========")
+    # test_acc = vote(model_list, device, test_dataloader, voting=args.strategy, num_classes=num_classes)
+    # print(f"test accuracy before re-training: {test_acc:>6}")
+    # poisoned_test_acc = vote(model_list, device, poisoned_test_dataloader, voting=args.strategy, num_classes=num_classes)
+    # print(f"poisoned test accuracy before re-training: {poisoned_test_acc:>6}")
 
     # Get the last convolutional layer of the model, as explained in the paper
     print("======== pruning... ========")
     last_conv_layer_list = []
     for model in model_list:
+        model = model.to(device)
         layer_to_prune = None
-        if model == 'resnet50':
+        if model.__class__.__name__ == 'ResNet':
             last_conv_layer_list.append(model.layer4[-1])
             layer_to_prune = 'layer4'
-        elif model == 'vgg19':
+        elif model.__class__.__name__ == 'VGG':
             last_conv_layer_list.append(model.features[-1])
             layer_to_prune = 'features'
-        elif model == 'efficientnet-b3':
-            last_conv_layer_list.append(model._conv_head)
-            layer_to_prune = '_conv_head'
+        elif model.__class__.__name__ == 'EfficientNet':
+            last_conv_layer_list.append(model.features[-1][0])
+            layer_to_prune = 'features'
         else:
             raise Exception("Invalid model name. Please choose one of the following: 'resnet50', 'vgg19', 'efficientnet-b3'.")
         
@@ -153,7 +177,6 @@ def main():
         
     
     # Evaluate the models after pruning but before re-training
-    
     print("======== Evaluating the models after pruning but before re-training ========")
     test_acc = vote(model_list, device, test_dataloader, voting=args.strategy, num_classes=num_classes)
     print(f"test accuracy before re-training: {test_acc:>6}")
@@ -166,6 +189,8 @@ def main():
         test_acc = voting_ensemble(args.dataname, args.batch_size, args.n_epochs // 10, models_name_list, is_pretrained_list, optim_list, device, tr_vl_split=0.8, strategy=args.strategy)
     elif args.type == 'bagging':
         test_acc = bagging_ensemble(args.dataname, args.batch_size, args.n_epochs // 10, models_name_list, is_pretrained_list, optim_list, device, tr_vl_split=0.8)
+    elif args.type == 'stacking':
+        test_acc = stack_ensemble(0, args.dataname, args.batch_size, args.n_epochs // 10, models_name_list, is_pretrained_list, optim_list, device, tr_vl_split=0.8)
     else:
         raise Exception("Invalid ensemble type. Please choose either 'voting' or 'bagging'.")
     
@@ -177,5 +202,5 @@ def main():
     print(f"poisoned test accuracy after re-training: {poisoned_test_acc:>6}")
 
         
-if __name__ == 'main':
+if __name__ == '__main__':
     main()
