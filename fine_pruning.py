@@ -158,8 +158,11 @@ def main():
                 forward_hook)
             
             model.eval()
-            for data, _ in test_dataloader:
-                model(data.cuda())
+            # for data, _ in test_dataloader:
+            #     model(data.cuda())
+            print('Doing a forward pass on the whole testset to evaluate the activations of the neurons...')
+            test_acc = vote(model_list, device, test_dataloader, voting=args.strategy, num_classes=num_classes)
+
             hook.remove()
 
         container = torch.cat(container, dim=0)
